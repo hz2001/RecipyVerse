@@ -1,0 +1,119 @@
+Title: RecipeVerse: A Decentralized Culinary Archive
+
+Team: Herbert Zhang, [Add other team member names here]
+
+Abstract:
+The world holds a vast diversity of culinary traditions, many of which are at risk of being lost due to a lack of proper preservation and open access. RecipeVerse proposes a blockchain-based platform where users can mint global culinary recipes as NFTs, enabling permanent, verifiable, and decentralized storage and discovery. By using public blockchain and decentralized storage (e.g., IPFS), RecipeVerse ensures that each recipe is tamper-proof, attributed to its creator, and accessible globally, supporting cultural preservation and digital ownership.
+
+Background:
+Traditional recipes are often passed down informally and are vulnerable to being lost over time. Current recipe-sharing platforms are centralized, lack authenticity verification, and offer no mechanism for provenance or ownership. Blockchain, with its immutable ledger and decentralized nature, is a fitting solution for preserving and attributing such cultural artifacts.
+Recent developments in the NFT space show increasing interest in using tokens for more than digital art—from music to academic credentials. Platforms like Mirror and Zora demonstrate that blockchain can support creative content with meaningful metadata and community engagement.
+Relevant links:
+
+https://mirror.xyz/
+
+https://zora.co/
+
+https://docs.ipfs.tech/
+
+Project Objectives:
+
+Develop a decentralized application (dApp) for users to mint, explore, and share unique recipe NFTs.
+
+Support tagging and categorization for global discoverability.
+
+Ensure recipes are stored in a permanent, verifiable, and accessible manner.
+
+Promote community curation and respect for cultural heritage in food.
+
+Methodology:
+
+Design ERC-721 smart contracts for recipe NFTs with metadata fields such as name, ingredients, instructions, region, media links, and creator attribution.
+
+Use IPFS to store media-rich recipe data (e.g., images, videos, instructions).
+
+Build a web frontend using React and Web3 libraries to interact with the smart contract.
+
+Develop a backend system for recipe indexing, search, and category filtering.
+
+Conduct user testing with mock recipe submissions and feedback collection.
+
+Scope and Deliverables:
+In Scope:
+
+Smart contract development and deployment on Ethereum testnet or Polygon.
+
+Recipe NFT minting and metadata storage using IPFS.
+
+Frontend with wallet connection, upload form, recipe explorer, and basic search.
+
+Documentation on architecture, usage, and deployment.
+
+Out of Scope:
+
+Monetization features (e.g., buying/selling NFTs).
+
+Mobile application development.
+
+Long-term DAO governance or advanced community features.
+
+Evaluation:
+Success criteria:
+
+Users can successfully mint at least 10 sample recipe NFTs.
+
+Metadata and media are correctly stored and verifiable via IPFS and blockchain.
+
+Frontend displays recipe data clearly and supports filtering by cuisine or tags.
+
+Smart contract passes test cases and basic security review.
+Learning outcomes:
+
+Gain hands-on experience with NFT standards and IPFS.
+
+Understand blockchain-based content authentication.
+
+Practice building full-stack Web3 applications.
+
+Resources:
+
+Ethereum testnet (Goerli) or Polygon Mumbai
+
+IPFS for decentralized file storage
+
+Alchemy/Infura for blockchain API access
+
+MetaMask for wallet integration
+
+React, Ethers.js/Web3.js for frontend
+
+Hardhat or Truffle for contract development
+
+Challenges:
+
+Handling IPFS file size and reliability
+
+Metadata schema design for rich recipe content
+
+Managing gas costs or scalability (considering L2s like Polygon)
+
+Educating users on how to submit meaningful and respectful recipes
+To mitigate these, we plan to:
+
+Limit file size for uploads and provide compression tools
+
+Create metadata templates and form validations
+
+Use Polygon for low-cost transactions
+
+Include onboarding guides in the frontend
+
+Ethics:
+
+Respecting cultural heritage: we will implement attribution fields and encourage users to credit original sources.
+
+Privacy: No sensitive personal data will be collected.
+
+Intellectual property: We will include disclaimers and attribution guidelines to promote ethical content sharing.
+
+Community curation: We will allow for optional community flagging of offensive/inappropriate content in future versions.
