@@ -9,13 +9,14 @@ export interface Recipe {
   tags: string[];
   createdAt: string;
   ipfsHash: string;
+  views: number;
 }
 
 export const recipes: Recipe[] = [
   {
     id: '1',
     name: '红烧肉 (Hongshao Rou - Red Braised Pork Belly)',
-    creator: '0xABC123...456',
+    creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
     region: 'China',
     ingredients: [
       '500g pork belly, cut into 2cm cubes',
@@ -43,12 +44,13 @@ export const recipes: Recipe[] = [
     imageUrl: 'https://images.unsplash.com/photo-1623689048105-a17b1e1936b2',
     tags: ['Chinese', 'Pork', 'Main Dish', 'Traditional'],
     createdAt: '2023-10-15T14:30:00Z',
-    ipfsHash: 'QmXyZ123AbC456dEF789gHi'
+    ipfsHash: 'QmXyZ123AbC456dEF789gHi',
+    views: 150
   },
   {
     id: '2',
     name: 'Pasta Carbonara',
-    creator: '0xDEF789...012',
+    creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
     region: 'Italy',
     ingredients: [
       '400g spaghetti',
@@ -71,12 +73,13 @@ export const recipes: Recipe[] = [
     imageUrl: 'https://images.unsplash.com/photo-1612874742237-6526221588e3',
     tags: ['Italian', 'Pasta', 'Main Dish', 'Quick'],
     createdAt: '2023-09-22T18:45:00Z',
-    ipfsHash: 'QmAbC123xYz456DEf789GHi'
+    ipfsHash: 'QmAbC123xYz456DEf789GHi',
+    views: 325
   },
   {
     id: '3',
     name: 'Butter Chicken (Murgh Makhani)',
-    creator: '0xGHI456...789',
+    creator: '0x1111111111111111111111111111111111111111',
     region: 'India',
     ingredients: [
       '800g boneless chicken thighs, cut into pieces',
@@ -109,12 +112,13 @@ export const recipes: Recipe[] = [
     imageUrl: 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db',
     tags: ['Indian', 'Chicken', 'Main Dish', 'Creamy'],
     createdAt: '2023-11-05T20:15:00Z',
-    ipfsHash: 'QmJkL123mNo456PqR789sTu'
+    ipfsHash: 'QmJkL123mNo456PqR789sTu',
+    views: 410
   },
   {
     id: '4',
     name: 'Bibimbap (비빔밥)',
-    creator: '0xJKL789...012',
+    creator: '0x1111111111111111111111111111111111111111',
     region: 'Korea',
     ingredients: [
       '2 cups short-grain rice, cooked',
@@ -144,12 +148,13 @@ export const recipes: Recipe[] = [
     imageUrl: 'https://images.unsplash.com/photo-1553163147-622ab57be1c7',
     tags: ['Korean', 'Rice', 'Main Dish', 'Healthy'],
     createdAt: '2023-12-10T12:00:00Z',
-    ipfsHash: 'QmUvW123xYz456ABc789DEf'
+    ipfsHash: 'QmUvW123xYz456ABc789DEf',
+    views: 280
   },
   {
     id: '5',
     name: 'Paella Valenciana',
-    creator: '0xMNO012...345',
+    creator: '0x1234567890abcdef1234567890abcdef12345678',
     region: 'Spain',
     ingredients: [
       '400g bomba or calasparra rice',
@@ -184,6 +189,34 @@ export const recipes: Recipe[] = [
     imageUrl: 'https://images.unsplash.com/photo-1512058564366-18510be2db19',
     tags: ['Spanish', 'Rice', 'Main Dish', 'Seafood'],
     createdAt: '2024-01-20T19:30:00Z',
-    ipfsHash: 'QmGhI123jKl456MnO789PqR'
+    ipfsHash: 'QmGhI123jKl456MnO789PqR',
+    views: 550
+  },
+  {
+    id: '6',
+    name: 'Simple Omelette',
+    creator: '0x1234567890abcdef1234567890abcdef12345678',
+    region: 'Global',
+    ingredients: [
+      '3 large eggs',
+      '1 tablespoon butter or oil',
+      'Salt and pepper to taste',
+      'Optional fillings: cheese, ham, onions, peppers'
+    ],
+    instructions: [
+      'Crack eggs into a bowl, add salt and pepper, and whisk until smooth.',
+      'Heat butter or oil in a non-stick skillet over medium heat.',
+      'Pour egg mixture into the hot skillet.',
+      'As eggs set, gently lift edges and tilt skillet to allow uncooked egg to flow underneath.',
+      'Add optional fillings to one half of the omelette.',
+      'Fold the other half over the fillings.',
+      'Cook for another 30 seconds to 1 minute until cheese is melted (if used) and eggs are cooked through.',
+      'Slide onto a plate and serve immediately.'
+    ],
+    imageUrl: 'https://images.unsplash.com/photo-1584278857498-ef743136375a',
+    tags: ['Breakfast', 'Quick', 'Eggs', 'Simple'],
+    createdAt: '2024-03-01T08:00:00Z',
+    ipfsHash: 'Qm omeletteHashPlaceholder123',
+    views: 95
   }
 ]; 

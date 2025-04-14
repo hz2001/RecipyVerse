@@ -1,10 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { recipes } from '../data/dummyData';
 import RecipeCard from '../components/RecipeCard';
 import UserService from '../services/userService';
+import VerificationModal from '../components/VerificationModal';
 
 const MerchantProfilePage = () => {
   const navigate = useNavigate();
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<'unverified' | 'pending' | 'verified' | 'failed'>('unverified');
   
   // Simulating a logged-in merchant
   const merchant = {
@@ -33,6 +37,55 @@ const MerchantProfilePage = () => {
     UserService.logout();
     navigate('/');
   };
+
+  const handleVerifyClick = () => {
+    setIsVerificationModalOpen(true);
+  };
+
+  const handleVerificationComplete = (status: 'pending') => {
+    setVerificationStatus(status);
+    setIsVerificationModalOpen(false);
+    console.log(`Simulating file upload for merchant ${merchant.id}. Status set to pending.`);
+  };
+
+  const handleCloseModal = () => {
+    setIsVerificationModalOpen(false);
+  };
+
+  let verificationDisplay;
+  switch (verificationStatus) {
+    case 'verified':
+      verificationDisplay = (
+        <div className="bg-green-100 text-green-700 px-4 py-2 rounded-md text-sm font-medium">
+          Account Verified
+        </div>
+      );
+      break;
+    case 'pending':
+      verificationDisplay = (
+        <div className="bg-yellow-100 text-yellow-700 px-4 py-2 rounded-md text-sm font-medium">
+          Verification Pending
+        </div>
+      );
+      break;
+    case 'failed':
+      verificationDisplay = (
+        <div className="bg-red-100 text-red-700 px-4 py-2 rounded-md text-sm font-medium">
+          Verification Failed
+        </div>
+      );
+      break;
+    case 'unverified':
+    default:
+      verificationDisplay = (
+        <button
+          onClick={handleVerifyClick}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors text-sm font-medium"
+        >
+          Verify Account
+        </button>
+      );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 md:py-12">
@@ -68,8 +121,8 @@ const MerchantProfilePage = () => {
           </div>
         </div>
 
-        {/* Merchant Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Merchant Stats & Verification Status */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 items-center">
           <div className="bg-white rounded-lg shadow-md p-6 text-center">
             <h3 className="text-lg font-medium text-gray-600 mb-2">Total Recipes</h3>
             <p className="text-3xl font-bold text-amber-600">{merchant.totalRecipes}</p>
@@ -81,6 +134,10 @@ const MerchantProfilePage = () => {
           <div className="bg-white rounded-lg shadow-md p-6 text-center">
             <h3 className="text-lg font-medium text-gray-600 mb-2">Wallet Address</h3>
             <p className="text-sm font-mono text-gray-800 truncate">{merchant.walletAddress}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-6 text-center flex flex-col items-center justify-center h-full">
+            <h3 className="text-lg font-medium text-gray-600 mb-2">Verification Status</h3>
+            <div className="mt-1">{verificationDisplay}</div>
           </div>
         </div>
 
@@ -205,6 +262,16 @@ const MerchantProfilePage = () => {
           </button>
         </div>
       </div>
+
+      {/* Verification Modal is now active */}
+      {isVerificationModalOpen && (
+        <VerificationModal
+          isOpen={isVerificationModalOpen}
+          onClose={handleCloseModal}
+          onUploadComplete={handleVerificationComplete}
+          merchantId={merchant.id}
+        />
+      )}
     </div>
   );
 };

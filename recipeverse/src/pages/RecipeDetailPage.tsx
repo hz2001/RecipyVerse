@@ -1,6 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { recipes } from '../data/dummyData';
+import { incrementRecipeView } from '../utils/recipeUtils';
 
 const RecipeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -9,6 +10,15 @@ const RecipeDetailPage = () => {
   
   // Find recipe by ID
   const recipe = recipes.find(r => r.id === id);
+  
+  // Effect to increment view count on load
+  useEffect(() => {
+    if (id) {
+      // In a real app, you might want to debounce this or ensure it only happens once per session
+      incrementRecipeView(id); // Call the function to increment views
+    }
+    // Run only when the component mounts or the id changes
+  }, [id]);
   
   if (!recipe) {
     return (

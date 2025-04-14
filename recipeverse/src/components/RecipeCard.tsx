@@ -5,6 +5,15 @@ interface RecipeCardProps {
   recipe: Recipe;
 }
 
+// Helper function to shorten wallet addresses
+const shortenAddress = (address: string | undefined | null): string => {
+  if (!address || address.length < 10) { // Basic check for validity
+    return address || 'Unknown Creator';
+  }
+  // Example: 0x1234567890abcdef -> 0x123...cdef
+  return `${address.substring(0, 5)}...${address.substring(address.length - 4)}`;
+};
+
 const RecipeCard = ({ recipe }: RecipeCardProps) => {
   return (
     <Link 
@@ -44,8 +53,8 @@ const RecipeCard = ({ recipe }: RecipeCardProps) => {
         </div>
         
         <div className="mt-auto">
-          <p className="text-sm text-gray-600">
-            By {recipe.creator}
+          <p className="text-sm text-gray-600" title={recipe.creator}>
+            By {shortenAddress(recipe.creator)}
           </p>
         </div>
       </div>

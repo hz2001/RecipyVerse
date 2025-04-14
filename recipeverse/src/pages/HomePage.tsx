@@ -9,16 +9,13 @@ const HomePage = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchFilter, setSearchFilter] = useState('all');
 
-  // Get the latest 3 recipes
-  const latestRecipes = [...recipes].sort((a, b) => 
+  // Get ALL recipes sorted by date (don't slice yet)
+  const latestRecipesSorted = [...recipes].sort((a, b) =>
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  ).slice(0, 3);
+  );
 
-  // Get random featured recipes (different from latest)
-  const featuredRecipes = [...recipes]
-    .filter(recipe => !latestRecipes.some(r => r.id === recipe.id))
-    .sort(() => 0.5 - Math.random())
-    .slice(0, 2);
+  // --- Add new featured recipe logic based on views ---
+  const topViewedRecipes = [...recipes].sort((a, b) => b.views - a.views);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,16 +224,28 @@ const HomePage = () => {
       {/* Only show Latest and Featured sections if not searching */}
       {!isSearching && (
         <>
-          {/* Featured Recipes - Moved to top for mobile */}
+          {/* Featured Recipes - Updated */}
           <section className="py-8 md:py-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-8">
-                Featured Recipes
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-8 text-center">
+                🔥 Featured Recipes
               </h2>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8">
-                {featuredRecipes.map(recipe => (
-                  <RecipeCard key={recipe.id} recipe={recipe} />
+
+              {/* Responsive Grid for Top Viewed Recipes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+                {/* Show top 2 on md, top 3 on lg, top 4 on xl */} 
+                {topViewedRecipes.slice(0, 4).map((recipe, index) => (
+                  <div 
+                    key={recipe.id}
+                    className={[
+                      "", // Default: always show first card
+                      "md:block", // MD+: always show second card
+                      "lg:block", // LG+: always show third card
+                      "xl:block"  // XL+: always show fourth card
+                    ][index] || 'hidden'} // Hide based on index and breakpoint
+                   >
+                     <RecipeCard recipe={recipe} />
+                   </div>
                 ))}
               </div>
             </div>
@@ -276,19 +285,32 @@ const HomePage = () => {
             </div>
           </section>
 
-          {/* Latest Recipes */}
+          {/* Latest Recipes - Updated */}
           <section className="py-8 md:py-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-4 sm:mb-0">Latest Recipes</h2>
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-4 sm:mb-0">✨ Latest Recipes</h2>
                 <Link to="/explore" className="text-amber-600 hover:text-amber-700 font-medium">
                   View All →
                 </Link>
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                {latestRecipes.map(recipe => (
-                  <RecipeCard key={recipe.id} recipe={recipe} />
+
+              {/* Update grid layout and mapping */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+                {/* Map over the first 4 latest recipes */}
+                {latestRecipesSorted.slice(0, 4).map((recipe, index) => (
+                  <div 
+                    key={recipe.id}
+                    // Apply conditional visibility based on index and breakpoint
+                    className={[
+                      "", // Default: always show first card
+                      "md:block", // MD+: always show second card
+                      "lg:block", // LG+: always show third card
+                      "xl:block"  // XL+: always show fourth card
+                    ][index] || 'hidden'} // Hide based on index and breakpoint
+                  >
+                    <RecipeCard key={recipe.id} recipe={recipe} />
+                  </div>
                 ))}
               </div>
             </div>
