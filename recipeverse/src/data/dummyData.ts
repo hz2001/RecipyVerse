@@ -16,7 +16,7 @@ export const recipes: Recipe[] = [
   {
     id: '1',
     name: '红烧肉 (Hongshao Rou - Red Braised Pork Belly)',
-    creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+    creator: '0xUserNumber234567890abcdef12345678',
     region: 'China',
     ingredients: [
       '500g pork belly, cut into 2cm cubes',
@@ -79,7 +79,7 @@ export const recipes: Recipe[] = [
   {
     id: '3',
     name: 'Butter Chicken (Murgh Makhani)',
-    creator: '0x1111111111111111111111111111111111111111',
+    creator: '0xUserNumber234567890abcdef12345678',
     region: 'India',
     ingredients: [
       '800g boneless chicken thighs, cut into pieces',
@@ -154,7 +154,7 @@ export const recipes: Recipe[] = [
   {
     id: '5',
     name: 'Paella Valenciana',
-    creator: '0x1234567890abcdef1234567890abcdef12345678',
+    creator: '0xMerchantVerified1234567890abcdef12345678',
     region: 'Spain',
     ingredients: [
       '400g bomba or calasparra rice',
@@ -195,7 +195,7 @@ export const recipes: Recipe[] = [
   {
     id: '6',
     name: 'Simple Omelette',
-    creator: '0x1234567890abcdef1234567890abcdef12345678',
+    creator: '0xMerchantVerified1234567890abcdef12345678',
     region: 'Global',
     ingredients: [
       '3 large eggs',

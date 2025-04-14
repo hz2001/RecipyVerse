@@ -9,25 +9,32 @@ export interface UserData {
 
 export const dummyUserData: UserData[] = [
   {
-    userWalletID: "0x1234567890abcdef1234567890abcdef12345678", // Example Wallet 1
-    NFThold: ["1", "3"], // Holds recipe IDs 1 and 3
+    userWalletID: "0xMerchantVerified1234567890abcdef12345678", // Example Wallet 1
+    NFThold: [], // Holds recipe IDs 1 and 3
     isMerchant: true,
     NFTcreated: ["5", "6"], // Created recipe IDs 5 and 6
     isverified: true,
   },
   {
-    userWalletID: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd", // Example Wallet 2
+    userWalletID: "0xUserNumber1234567890abcdef12345678", // Example Wallet 2
     NFThold: ["2"],        // Holds recipe ID 2
     isMerchant: false,
     NFTcreated: [],       // Created no recipes
     isverified: false,
   },
   {
-    userWalletID: "0x1111111111111111111111111111111111111111", // Example Wallet 3 (No NFTs)
+    userWalletID: "0xUserNumber234567890abcdef12345678", // Example Wallet 3 (No NFTs)
     NFThold: [],
     isMerchant: false,
-    NFTcreated: [],
+    NFTcreated: ["1","3"],
     isverified: false,
+  },
+  {
+    userWalletID: "0xMerchantUnverified1234567890abcdef00000", // New Unverified Merchant Wallet
+    NFThold: [], // Example: No NFTs held yet
+    isMerchant: true,
+    NFTcreated: [], // Example: No NFTs created yet
+    isverified: false, // The crucial part: set to false
   },
 ];
 

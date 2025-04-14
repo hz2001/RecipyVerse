@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { UserData, fetchUserDataByWallet } from '../data/dummyUserData';
 import { recipes, Recipe } from '../data/dummyData'; // Import recipes data
 import RecipeCard from '../components/RecipeCard'; // Reuse RecipeCard
+import MerchantVerificationInputModal from '../components/MerchantVerificationInputModal'; // Import the new modal
 
 // Placeholder for MetaMask icon (replace with actual SVG or component later)
 const MetaMaskIcon = () => (
@@ -20,13 +21,15 @@ const MyRecipesPage: React.FC = () => {
   const [userData, setUserData] = useState<UserData | null | undefined>(null); // null: initial, undefined: not found
   // State for loading status
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false); // State for the new modal
 
-  // Predefined wallet addresses for simulation
+  // Predefined wallet addresses for simulation - updated to match dummyUserData + fake ID
   const sampleWallets = [
-    "0x1234567890abcdef1234567890abcdef12345678", // Wallet with owned and created NFTs
-    "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd", // Wallet with only owned NFTs
-    "0x1111111111111111111111111111111111111111", // Wallet with no NFTs
-    "0xNoSuchWalletExistsInDummyData00000000000", // Wallet not in dummy data
+    "0xMerchantVerified1234567890abcdef12345678", // Verified Merchant
+    "0xUserNumber1234567890abcdef12345678",      // Regular User with owned NFT
+    "0xUserNumber234567890abcdef12345678",      // Regular User who created NFTs
+    "0xMerchantUnverified1234567890abcdef00000", // Unverified Merchant
+    "0xFakeWalletIdNotInDatabase00000000000000",   // Fake Wallet ID (Not in dummyUserData)
   ];
 
   // Simulate wallet connection - cycle through sample wallets
@@ -45,6 +48,42 @@ const MyRecipesPage: React.FC = () => {
     setUserData(null);
     setIsLoading(false);
   }
+
+  // Handler to open the verification modal
+  const handleOpenVerifyModal = () => {
+    setIsVerifyModalOpen(true);
+  };
+
+  // Handler for submitting verification details
+  const handleVerificationSubmit = (details: { name: string; address: string; file: File }) => {
+    if (!userData || !connectedWallet) return; // Should not happen if button is shown, but safety check
+
+    const merchantId = userData.userWalletID;
+    const filename = `${merchantId}-${details.file.name}`;
+
+    // 1. Simulate creating the detail JSON
+    const detailJson = {
+      merchantName: details.name,
+      address: details.address,
+      licenseFilename: filename, // Store the intended filename
+      submittedAt: new Date().toISOString(),
+    };
+    console.log("Simulating backend update with details:", JSON.stringify(detailJson, null, 2));
+
+    // 2. Simulate file save (as we cannot save directly)
+    console.log(`Simulating save of file '${filename}' to data/unprocessed/`);
+    alert(`Verification details submitted (simulation). File "${filename}" would be processed by the backend.`);
+
+    // 3. Update frontend state to show as verified (locally)
+    // IMPORTANT: This does NOT update the actual dummyUserData.ts file.
+    // It only changes the state for the current view.
+    setUserData(prevData => {
+        if (!prevData) return null;
+        return { ...prevData, isverified: true }; // Create new object with isverified set to true
+    });
+
+    setIsVerifyModalOpen(false); // Close the modal
+  };
 
   // Effect to fetch user data when wallet is connected
   useEffect(() => {
@@ -173,14 +212,32 @@ const MyRecipesPage: React.FC = () => {
             </div>
           ) : (
             <div className="text-center py-8 bg-gray-100 rounded-lg">
-              <p className="text-gray-600 mb-4">You haven't created any NFTs with this wallet yet.</p>
+              <p className="text-gray-600 mb-4">
+                {userData?.isMerchant 
+                  ? "You haven't listed any creations yet." 
+                  : "You haven't created any NFTs with this wallet yet."
+                }
+              </p>
                <div className="space-x-4">
-                 <Link
-                    to="/create-nft"
-                    className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                 >
-                    Create NFT
-                 </Link>
+                 {/* --- Conditional Button Logic --- */}
+                 {(userData?.isMerchant && !userData.isverified) ? (
+                    // If Unverified Merchant, show Start Verify button
+                    <button
+                        onClick={handleOpenVerifyModal}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                    >
+                        Start Verification
+                    </button>
+                 ) : (
+                    // Otherwise (Verified Merchant or Regular User), show Create NFT button
+                    <Link
+                        to="/create-nft" // Assuming this is the correct link
+                        className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                    >
+                        {userData?.isMerchant ? 'Create My First NFT' : 'Create My First Recipy'}
+                    </Link>
+                 )}
+                 {/* --- End Conditional Button Logic --- */}
                 </div>
             </div>
           )}
@@ -198,6 +255,16 @@ const MyRecipesPage: React.FC = () => {
          </h1>
         {renderContent()}
       </div>
+
+      {/* Render the Verification Input Modal */}
+      {userData && connectedWallet && (
+        <MerchantVerificationInputModal
+          isOpen={isVerifyModalOpen}
+          onClose={() => setIsVerifyModalOpen(false)}
+          onSubmit={handleVerificationSubmit}
+          merchantId={connectedWallet} // Pass the wallet ID as merchantId
+        />
+      )}
     </div>
   );
 };
