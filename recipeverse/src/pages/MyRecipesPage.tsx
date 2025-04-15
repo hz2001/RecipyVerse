@@ -4,6 +4,7 @@ import { UserData, fetchUserDataByWallet } from '../data/dummyUserData';
 import { recipes, Recipe } from '../data/dummyData'; // Import recipes data
 import RecipeCard from '../components/RecipeCard'; // Reuse RecipeCard
 import MerchantVerificationInputModal from '../components/MerchantVerificationInputModal'; // Import the new modal
+import { useWallet } from '../contexts/WalletContext'; // Import useWallet
 
 // Placeholder for MetaMask icon (replace with actual SVG or component later)
 const MetaMaskIcon = () => (
@@ -15,15 +16,21 @@ const MetaMaskIcon = () => (
 
 
 const MyRecipesPage: React.FC = () => {
-  // State for wallet connection simulation
-  const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
-  // State for fetched user data
-  const [userData, setUserData] = useState<UserData | null | undefined>(null); // null: initial, undefined: not found
-  // State for loading status
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false); // State for the new modal
+  // Get global state/functions from WalletContext
+  const {
+    connectedWallet: globalConnectedWallet,
+    userData: globalUserData,
+    isLoading: globalIsLoading,
+    testMode,
+    connectWallet,
+    disconnectWallet,
+  } = useWallet();
 
-  // Predefined wallet addresses for simulation - updated to match dummyUserData + fake ID
+  // --- State for TEST MODE Simulation --- 
+  const [simulatedWallet, setSimulatedWallet] = useState<string | null>(null);
+  const [simulatedUserData, setSimulatedUserData] = useState<UserData | null | undefined>(null);
+  const [simulatedIsLoading, setSimulatedIsLoading] = useState<boolean>(false);
+  // Predefined wallet addresses for simulation
   const sampleWallets = [
     "0xMerchantVerified1234567890abcdef12345678", // Verified Merchant
     "0xUserNumber1234567890abcdef12345678",      // Regular User with owned NFT
@@ -31,81 +38,99 @@ const MyRecipesPage: React.FC = () => {
     "0xMerchantUnverified1234567890abcdef00000", // Unverified Merchant
     "0xFakeWalletIdNotInDatabase00000000000000",   // Fake Wallet ID (Not in dummyUserData)
   ];
+  // --- End State for TEST MODE --- 
 
-  // Simulate wallet connection - cycle through sample wallets
-  const handleConnectWallet = () => {
-    const currentIndex = connectedWallet ? sampleWallets.indexOf(connectedWallet) : -1;
+  // State for the verification modal (used in both modes, triggered based on userData)
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false);
+
+  // --- Determine effective state based on testMode --- 
+  const connectedWallet = testMode ? simulatedWallet : globalConnectedWallet;
+  let userData = testMode ? simulatedUserData : globalUserData;
+  const isLoading = testMode ? simulatedIsLoading : globalIsLoading;
+
+  // --- Handlers for TEST MODE Simulation --- 
+  const handleSimulateConnectWallet = () => {
+    if (!testMode) return;
+    const currentIndex = simulatedWallet ? sampleWallets.indexOf(simulatedWallet) : -1;
     const nextIndex = (currentIndex + 1) % sampleWallets.length;
-    console.log(`Simulating connection to: ${sampleWallets[nextIndex]}`);
-    setConnectedWallet(sampleWallets[nextIndex]);
-    setUserData(null); // Reset user data on new connection
-    setIsLoading(true); // Set loading state
+    const nextWallet = sampleWallets[nextIndex];
+    console.log(`Simulating connection to: ${nextWallet}`);
+    setSimulatedWallet(nextWallet);
+    setSimulatedUserData(null); // Reset user data on new connection
+    setSimulatedIsLoading(true);
+    // Fetch data for simulated wallet
+    setTimeout(() => {
+      const data = fetchUserDataByWallet(nextWallet);
+      setSimulatedUserData(data);
+      setSimulatedIsLoading(false);
+    }, 500);
   };
 
-  const handleDisconnectWallet = () => {
+  const handleSimulateDisconnectWallet = () => {
+    if (!testMode) return;
     console.log("Simulating disconnection");
-    setConnectedWallet(null);
-    setUserData(null);
-    setIsLoading(false);
+    setSimulatedWallet(null);
+    setSimulatedUserData(null);
+    setSimulatedIsLoading(false);
   }
+  // --- End Handlers for TEST MODE --- 
 
-  // Handler to open the verification modal
+  // Handler to open the verification modal (used by both modes)
   const handleOpenVerifyModal = () => {
+    if (!connectedWallet) return; // Need wallet connected to verify
     setIsVerifyModalOpen(true);
   };
 
   // Handler for submitting verification details
   const handleVerificationSubmit = (details: { name: string; address: string; file: File }) => {
-    if (!userData || !connectedWallet) return; // Should not happen if button is shown, but safety check
+    if (!connectedWallet) return; // Safety check
+    // Get the correct user data object based on mode
+    let currentUserData = testMode ? simulatedUserData : globalUserData;
+    if (!currentUserData) return; // Need user data
 
-    const merchantId = userData.userWalletID;
+    const merchantId = currentUserData.userWalletID;
     const filename = `${merchantId}-${details.file.name}`;
 
     // 1. Simulate creating the detail JSON
     const detailJson = {
       merchantName: details.name,
       address: details.address,
-      licenseFilename: filename, // Store the intended filename
+      licenseFilename: filename,
       submittedAt: new Date().toISOString(),
     };
     console.log("Simulating backend update with details:", JSON.stringify(detailJson, null, 2));
 
-    // 2. Simulate file save (as we cannot save directly)
+    // 2. Simulate file save
     console.log(`Simulating save of file '${filename}' to data/unprocessed/`);
     alert(`Verification details submitted (simulation). File "${filename}" would be processed by the backend.`);
 
-    // 3. Update frontend state to show as verified (locally)
-    // IMPORTANT: This does NOT update the actual dummyUserData.ts file.
-    // It only changes the state for the current view.
-    setUserData(prevData => {
-        if (!prevData) return null;
-        return { ...prevData, isverified: true }; // Create new object with isverified set to true
-    });
+    // 3. Update frontend state (locally for simulation, no direct update to context)
+    // This needs to update the correct state based on testMode.
+    if (testMode) {
+        setSimulatedUserData(prevData => {
+            if (!prevData) return null;
+            return { ...prevData, isverified: true };
+        });
+    } else {
+        // In real mode, we ideally trigger a refetch or update context state.
+        // For now, we'll just log that it would happen.
+        // A more robust solution would involve the context updating its userData.
+        console.warn("Real mode verification submitted. Context state not updated directly in this simulation.");
+        // To make the UI update *visually* in real mode immediately (like in test mode), 
+        // we could temporarily override the `userData` variable used for rendering.
+        // This is a temporary workaround:
+        userData = { ...(globalUserData as UserData), isverified: true };
+    }
 
-    setIsVerifyModalOpen(false); // Close the modal
+    setIsVerifyModalOpen(false);
   };
 
-  // Effect to fetch user data when wallet is connected
-  useEffect(() => {
-    if (connectedWallet) {
-      setIsLoading(true);
-      // Simulate API call delay
-      const timer = setTimeout(() => {
-        const data = fetchUserDataByWallet(connectedWallet);
-        setUserData(data); // data will be UserData or undefined
-        setIsLoading(false);
-      }, 500); // 0.5 second delay
-
-      return () => clearTimeout(timer); // Cleanup timer on unmount or wallet change
-    } else {
-        setUserData(null); // Clear data if disconnected
-        setIsLoading(false);
-    }
-  }, [connectedWallet]);
+  // Removed useEffect for fetching data - handled by WalletContext in real mode
+  // and by handleSimulateConnectWallet in test mode.
 
   // Filter recipes based on NFT IDs held or created by the user
-  const ownedRecipes = userData ? recipes.filter(recipe => userData.NFThold.includes(recipe.id)) : [];
-  const createdRecipes = userData ? recipes.filter(recipe => userData.NFTcreated.includes(recipe.id)) : [];
+  const ownedRecipes = userData ? recipes.filter(recipe => (userData?.NFThold ?? []).includes(recipe.id)) : [];
+  const createdRecipes = userData ? recipes.filter(recipe => (userData?.NFTcreated ?? []).includes(recipe.id)) : [];
 
   // Render Loading State
   const renderLoading = () => (
@@ -123,6 +148,7 @@ const MyRecipesPage: React.FC = () => {
     }
 
     if (!connectedWallet) {
+      // Show connect button - uses global connectWallet in real mode
       return (
         <div className="text-center py-16">
           <MetaMaskIcon />
@@ -130,19 +156,20 @@ const MyRecipesPage: React.FC = () => {
             Connect Your Wallet
           </h2>
           <p className="text-gray-500 mb-6">
-            You haven't connected your wallet yet. Please connect to view your recipes.
+            Connect your wallet to view your recipes.
           </p>
           <button
-            onClick={handleConnectWallet}
-            className="px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors"
+            onClick={testMode ? handleSimulateConnectWallet : connectWallet}
+            disabled={!testMode && isLoading} // Disable if global loading
+            className="px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors disabled:bg-gray-400"
           >
-            Connect Wallet (Simulate)
+            {testMode ? 'Connect Wallet (Simulate)' : 'Connect Wallet'}
           </button>
         </div>
       );
     }
 
-    // Wallet connected, check userData
+    // Wallet connected, show content
     return (
       <div>
          {/* Wallet Info and Disconnect Button */}
@@ -150,24 +177,29 @@ const MyRecipesPage: React.FC = () => {
             <div className="flex-grow">
                 <p className="text-sm text-gray-600 font-medium">Connected Wallet:</p>
                 <p className="text-md text-gray-900 font-mono break-all" title={connectedWallet}>{connectedWallet}</p>
+                 {/* Display Merchant Status based on effective userData */}
                  {userData && userData.isMerchant && (
-                     <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${userData.isverified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                     <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${userData.isverified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}> 
                          {userData.isverified ? 'Verified Merchant' : 'Unverified Merchant'}
                      </span>
                  )}
-                 {!userData && !isLoading && (
-                     <p className="text-sm text-red-600 mt-1">Wallet data not found in our records.</p>
+                 {/* Show not found message based on effective userData state */}
+                 {userData === undefined && !isLoading && (
+                     <p className="text-sm text-red-600 mt-1">You didn't create/own any NFTs in our platform.</p>
                  )}
             </div>
             <div className="flex-shrink-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-                <button
-                   onClick={handleConnectWallet} // Cycle through wallets
-                   className="w-full sm:w-auto px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
-                >
-                    Switch Wallet (Simulate)
-                </button>
+                {/* Simulation buttons only in test mode */}
+                {testMode && (
+                    <button
+                       onClick={handleSimulateConnectWallet} // Cycle through wallets
+                       className="w-full sm:w-auto px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+                    >
+                        Switch Wallet (Simulate)
+                    </button>
+                )}
                  <button
-                    onClick={handleDisconnectWallet}
+                    onClick={testMode ? handleSimulateDisconnectWallet : disconnectWallet}
                     className="w-full sm:w-auto px-3 py-2 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200 transition-colors"
                  >
                     Disconnect
@@ -202,7 +234,7 @@ const MyRecipesPage: React.FC = () => {
         {/* Created Recipes Section */}
         <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">
-            {userData?.isMerchant ? 'My Creation' : 'My Created Recipe NFTs'}
+            {userData?.isMerchant ? 'My Creations' : 'My Created Recipe NFTs'}
           </h2>
           {(userData && createdRecipes.length > 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -219,25 +251,22 @@ const MyRecipesPage: React.FC = () => {
                 }
               </p>
                <div className="space-x-4">
-                 {/* --- Conditional Button Logic --- */}
+                 {/* Conditional Button Logic (uses effective userData) */}
                  {(userData?.isMerchant && !userData.isverified) ? (
-                    // If Unverified Merchant, show Start Verify button
                     <button
-                        onClick={handleOpenVerifyModal}
+                        onClick={handleOpenVerifyModal} // Opens the verification modal
                         className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
                     >
                         Start Verification
                     </button>
                  ) : (
-                    // Otherwise (Verified Merchant or Regular User), show Create NFT button
                     <Link
-                        to="/create-nft" // Assuming this is the correct link
+                        to="/create" // Changed link to /create for simplicity
                         className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
                     >
-                        {userData?.isMerchant ? 'Create My First NFT' : 'Create My First Recipy'}
+                        {userData?.isMerchant ? 'Create My First Creation' : 'Create My First Recipe'}
                     </Link>
                  )}
-                 {/* --- End Conditional Button Logic --- */}
                 </div>
             </div>
           )}
@@ -257,7 +286,7 @@ const MyRecipesPage: React.FC = () => {
       </div>
 
       {/* Render the Verification Input Modal */}
-      {userData && connectedWallet && (
+      {connectedWallet && (
         <MerchantVerificationInputModal
           isOpen={isVerifyModalOpen}
           onClose={() => setIsVerifyModalOpen(false)}
