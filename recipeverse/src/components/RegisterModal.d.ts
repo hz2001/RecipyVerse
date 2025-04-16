@@ -10,4 +10,5 @@ interface RegisterModalProps {
 
 declare const RegisterModal: FC<RegisterModalProps>;
 
-export default RegisterModal; 
+export default RegisterModal;
+

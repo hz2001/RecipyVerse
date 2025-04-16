@@ -7,6 +7,8 @@ import CreateRecipePage from './pages/CreateRecipePage'
 import MyRecipesPage from './pages/MyRecipesPage'
 import CreateNftPage from './pages/CreateNftPage'
 import ExchangeNftPage from './pages/ExchangeNftPage'
+import TestSupabaseConnection from "./pages/TestSupabaseConnection.tsx";
+import TestNFTQueryPage from "./pages/TestNFTQueryPage.tsx";
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
               <Route path="/create-nft" element={<CreateNftPage />} />
               <Route path="/exchange-nft" element={<ExchangeNftPage />} />
               <Route path="*" element={<div className="p-12 text-center">Page Not Found</div>} />
+              <Route path="/test" element={<TestSupabaseConnection />} /> {/* ✅ 新加的测试数据库连接入口 */}
+              <Route path="/test-nfts" element={<TestNFTQueryPage />} />
             </Routes>
           </div>
         </main>

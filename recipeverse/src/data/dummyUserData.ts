@@ -37,4 +37,4 @@ export const fetchUserDataByWallet = (walletId: string): UserData | undefined =>
   console.log(`Simulating fetch for wallet: ${walletId}`);
   // Case-insensitive comparison for wallet IDs
   return dummyUserData.find(user => user.userWalletID.toLowerCase() === walletId?.toLowerCase());
-}; 
+};
