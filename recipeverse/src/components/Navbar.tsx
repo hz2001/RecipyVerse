@@ -20,6 +20,9 @@ const Navbar = () => {
             <Link to="/explore" className="text-white hover:text-amber-100 transition-colors">
               Explore
             </Link>
+            <Link to="/swap-market" className="text-white hover:text-amber-100 transition-colors">
+              Swap Market
+            </Link>
             <Link to="/create" className="text-white hover:text-amber-100 transition-colors">
               Create Recipe
             </Link>
@@ -61,6 +64,13 @@ const Navbar = () => {
               onClick={() => setIsMenuOpen(false)}
             >
               Explore
+            </Link>
+            <Link
+              to="/swap-market"
+              className="block px-3 py-2 rounded-md text-base font-medium text-white hover:text-amber-100 hover:bg-amber-700"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Swap Market
             </Link>
             <Link
               to="/create"

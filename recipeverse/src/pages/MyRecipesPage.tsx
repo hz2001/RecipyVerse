@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { UserData, fetchUserDataByWallet } from '../data/dummyUserData';
+import { Link, useNavigate } from 'react-router-dom';
+import { UserData, fetchUserDataByWallet, addNewMerchantToDb, dummyUserData } from '../data/dummyUserData';
 import { recipes, Recipe } from '../data/dummyData'; // Import recipes data
 import RecipeCard from '../components/RecipeCard'; // Reuse RecipeCard
 import MerchantVerificationInputModal from '../components/MerchantVerificationInputModal'; // Import the new modal
 import { useWallet } from '../contexts/WalletContext'; // Import useWallet
+import NftTypeSelectionModal from '../components/NftTypeSelectionModal'; // Import the new modal
 
 // Placeholder for MetaMask icon (replace with actual SVG or component later)
 const MetaMaskIcon = () => (
@@ -24,6 +25,7 @@ const MyRecipesPage: React.FC = () => {
     testMode,
     connectWallet,
     disconnectWallet,
+    updateUserData,
   } = useWallet();
 
   // --- State for TEST MODE Simulation --- 
@@ -40,13 +42,19 @@ const MyRecipesPage: React.FC = () => {
   ];
   // --- End State for TEST MODE --- 
 
-  // State for the verification modal (used in both modes, triggered based on userData)
-  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false);
+  // State for the verification modals (pre-connect and potentially post-connect)
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false); // Post-connect modal (current logic)
+  const [isPreVerifyModalOpen, setIsPreVerifyModalOpen] = useState<boolean>(false); // Pre-connect modal
+  const [isNftTypeModalOpen, setIsNftTypeModalOpen] = useState<boolean>(false); // New state for NFT type modal
+  const [pendingMerchantDetails, setPendingMerchantDetails] = useState<{ name: string; address: string; file: File } | null>(null);
 
   // --- Determine effective state based on testMode --- 
   const connectedWallet = testMode ? simulatedWallet : globalConnectedWallet;
   let userData = testMode ? simulatedUserData : globalUserData;
   const isLoading = testMode ? simulatedIsLoading : globalIsLoading;
+
+  // --- React Router Navigation ---
+  const navigate = useNavigate();
 
   // --- Handlers for TEST MODE Simulation --- 
   const handleSimulateConnectWallet = () => {
@@ -75,58 +83,123 @@ const MyRecipesPage: React.FC = () => {
   }
   // --- End Handlers for TEST MODE --- 
 
-  // Handler to open the verification modal (used by both modes)
+  // --- Handler for REAL MODE Merchant Registration --- 
+  const handleRegisterMerchantClick = () => {
+      if (testMode) return;
+      setIsPreVerifyModalOpen(true);
+  };
+
+  const handlePreVerificationSubmit = async (details: { name: string; address: string; file: File }) => {
+      if (testMode) return;
+
+      // 1. Log simulation
+      const detailJson = {
+          merchantName: details.name,
+          address: details.address,
+          licenseFilename: `${details.name}-${details.file.name}`,
+          submittedAt: new Date().toISOString(),
+      };
+      console.log("Simulating pre-verification submission (logging only):", JSON.stringify(detailJson, null, 2));
+      console.log(`Simulating save of file '${details.file.name}'`);
+
+      // 2. Close modal
+      setIsPreVerifyModalOpen(false);
+
+      // 3. Store details LOCALLY for check after connect
+      const currentRegistrationDetails = details;
+      // We still set the state, might be useful, but primary check uses local const
+      setPendingMerchantDetails(currentRegistrationDetails);
+
+      // 4. Connect wallet and wait for data fetch result
+      console.log("[Submit] Pending details stored. Calling connectWallet...");
+      const connectResult = await connectWallet();
+      console.log("[Submit] connectWallet finished. Result:", connectResult);
+
+      // 5. <<< Check conditions AFTER connectWallet completes >>>
+      // Use local `currentRegistrationDetails` for the check to avoid state timing issues
+      if (connectResult.userData === undefined && currentRegistrationDetails) {
+          console.log('>>> [Submit Action] New merchant registration detected AFTER connection. Adding to dummy DB... <<<');
+          // Ensure wallet ID is available from context AFTER connection attempt
+          if (connectResult.walletId) {
+               // Add as unverified first
+               const newUnverifiedMerchant = addNewMerchantToDb(connectResult.walletId, {
+                   name: currentRegistrationDetails.name,
+                   address: currentRegistrationDetails.address
+               });
+               console.log('>>> [Submit Action] Added new UNVERIFIED merchant:', newUnverifiedMerchant);
+               console.log('>>> [Submit Action] Updating context (unverified)...');
+               updateUserData(newUnverifiedMerchant); 
+               console.log('>>> [Submit Action] updateUserData (unverified) called.');
+
+               // --- TEMPORARY HACK FOR TESTING: Immediately verify --- 
+               console.warn('>>> [TESTING HACK] Attempting immediate verification... <<<');
+               const userIndex = dummyUserData.findIndex(user => user.userWalletID === connectResult.walletId);
+               if (userIndex !== -1) {
+                   dummyUserData[userIndex].isverified = true;
+                   // Create a *new* object reference for the context update
+                   const verifiedMerchant = { ...dummyUserData[userIndex] }; 
+                   console.log('>>> [TESTING HACK] Merchant verified in dummyData. Updating context again...');
+                   updateUserData(verifiedMerchant); // Update context with verified status
+                   console.log('>>> [TESTING HACK] Context updated with verified merchant.', verifiedMerchant);
+               } else {
+                   console.error('>>> [TESTING HACK] Failed to find newly added merchant in dummyUserData for verification hack.');
+               }
+               // --- END TEMPORARY HACK --- 
+
+          } else {
+              console.error(">>> [Submit Action] Cannot add merchant, walletId from connectResult is null/undefined even though userData was undefined.");
+              // Optionally: Show an error message to the user via state
+          }
+      } else {
+          console.log("[Submit Action] Conditions not met to add new merchant post-connection.", 
+                      { 
+                        fetchedUserDataExists: connectResult.userData !== undefined, 
+                        detailsAvailable: !!currentRegistrationDetails, 
+                        walletIdAvailable: !!connectResult.walletId 
+                      });
+      }
+
+      // 6. Clear pending details state as this attempt is done
+      console.log("[Submit] Clearing pending merchant details state.");
+      setPendingMerchantDetails(null);
+  };
+  // --- End Handlers for REAL MODE Merchant Registration ---
+
+  // Handler to open the post-connection verification modal (current logic, might be deprecated soon)
   const handleOpenVerifyModal = () => {
-    if (!connectedWallet) return; // Need wallet connected to verify
+    if (!connectedWallet || !userData?.isMerchant || userData?.isverified) return;
     setIsVerifyModalOpen(true);
   };
 
-  // Handler for submitting verification details
+  // Handler for submitting verification details (current logic for post-connect)
   const handleVerificationSubmit = (details: { name: string; address: string; file: File }) => {
-    if (!connectedWallet) return; // Safety check
-    // Get the correct user data object based on mode
-    let currentUserData = testMode ? simulatedUserData : globalUserData;
-    if (!currentUserData) return; // Need user data
-
-    const merchantId = currentUserData.userWalletID;
-    const filename = `${merchantId}-${details.file.name}`;
-
-    // 1. Simulate creating the detail JSON
-    const detailJson = {
-      merchantName: details.name,
-      address: details.address,
-      licenseFilename: filename,
-      submittedAt: new Date().toISOString(),
-    };
-    console.log("Simulating backend update with details:", JSON.stringify(detailJson, null, 2));
-
-    // 2. Simulate file save
-    console.log(`Simulating save of file '${filename}' to data/unprocessed/`);
-    alert(`Verification details submitted (simulation). File "${filename}" would be processed by the backend.`);
-
-    // 3. Update frontend state (locally for simulation, no direct update to context)
-    // This needs to update the correct state based on testMode.
-    if (testMode) {
-        setSimulatedUserData(prevData => {
-            if (!prevData) return null;
-            return { ...prevData, isverified: true };
-        });
-    } else {
-        // In real mode, we ideally trigger a refetch or update context state.
-        // For now, we'll just log that it would happen.
-        // A more robust solution would involve the context updating its userData.
-        console.warn("Real mode verification submitted. Context state not updated directly in this simulation.");
-        // To make the UI update *visually* in real mode immediately (like in test mode), 
-        // we could temporarily override the `userData` variable used for rendering.
-        // This is a temporary workaround:
-        userData = { ...(globalUserData as UserData), isverified: true };
+    if (!connectedWallet || testMode) return;
+    // Simulate submission
+    console.log("Simulating post-connection verification submission:", details);
+    alert(`Verification details submitted (simulation). File "${details.file.name}" would be processed.`);
+    // Update context state to show verified (simulation)
+    if (globalUserData) {
+        updateUserData({ ...globalUserData, isverified: true });
     }
-
     setIsVerifyModalOpen(false);
   };
 
-  // Removed useEffect for fetching data - handled by WalletContext in real mode
-  // and by handleSimulateConnectWallet in test mode.
+  // --- Handlers for NFT Type Selection ---
+  const handleOpenNftTypeModal = () => {
+      if (!userData?.isMerchant) return;
+      setIsNftTypeModalOpen(true);
+  };
+
+  const handleSelectCoupon = () => {
+      setIsNftTypeModalOpen(false);
+      navigate('/create-coupon');
+  };
+
+  const handleSelectMembership = () => {
+      setIsNftTypeModalOpen(false);
+      alert('Membership NFT creation is coming soon!');
+  };
+  // --- End Handlers for NFT Type Selection ---
 
   // Filter recipes based on NFT IDs held or created by the user
   const ownedRecipes = userData ? recipes.filter(recipe => (userData?.NFThold ?? []).includes(recipe.id)) : [];
@@ -148,28 +221,56 @@ const MyRecipesPage: React.FC = () => {
     }
 
     if (!connectedWallet) {
-      // Show connect button - uses global connectWallet in real mode
+      // --- Logged Out View: Test vs Real --- 
       return (
         <div className="text-center py-16">
           <MetaMaskIcon />
           <h2 className="text-2xl font-semibold text-gray-700 mt-4 mb-2">
-            Connect Your Wallet
+            {testMode ? 'Connect Your Wallet (Simulated)' : 'Connect or Register'}
           </h2>
           <p className="text-gray-500 mb-6">
-            Connect your wallet to view your recipes.
+            {testMode ? 'Connect your wallet to view your recipes.' : 'Connect as a customer or register as a merchant.'}
           </p>
-          <button
-            onClick={testMode ? handleSimulateConnectWallet : connectWallet}
-            disabled={!testMode && isLoading} // Disable if global loading
-            className="px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors disabled:bg-gray-400"
-          >
-            {testMode ? 'Connect Wallet (Simulate)' : 'Connect Wallet'}
-          </button>
+
+          {testMode ? (
+              // --- Test Mode Button --- 
+              <button
+                 onClick={handleSimulateConnectWallet}
+                 className="px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors"
+              >
+                  Connect Wallet (Simulate)
+              </button>
+          ) : (
+              // --- Real Mode Buttons --- 
+              <div className="max-w-xs mx-auto space-y-3">
+                  <button
+                      onClick={connectWallet} // Customer Connect
+                      disabled={isLoading}
+                      className="w-full px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors disabled:bg-gray-400 flex items-center justify-center space-x-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span>I'm a Customer</span>
+                  </button>
+                  <button
+                      onClick={handleRegisterMerchantClick} // Merchant Register
+                      disabled={isLoading}
+                      className="w-full px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow hover:bg-blue-600 transition-colors disabled:bg-gray-400 flex items-center justify-center space-x-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <span>Register as Merchant</span>
+                  </button>
+              </div>
+          )}
         </div>
       );
     }
 
-    // Wallet connected, show content
+    // <<< This main return block now handles both users and merchants >>>
+    console.log("Rendering Connected View for user:", userData); 
     return (
       <div>
          {/* Wallet Info and Disconnect Button */}
@@ -177,37 +278,30 @@ const MyRecipesPage: React.FC = () => {
             <div className="flex-grow">
                 <p className="text-sm text-gray-600 font-medium">Connected Wallet:</p>
                 <p className="text-md text-gray-900 font-mono break-all" title={connectedWallet}>{connectedWallet}</p>
-                 {/* Display Merchant Status based on effective userData */}
-                 {userData && userData.isMerchant && (
-                     <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${userData.isverified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}> 
+                 {/* Display Merchant Status if applicable */}
+                 {userData?.isMerchant && (
+                     <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${userData.isverified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                          {userData.isverified ? 'Verified Merchant' : 'Unverified Merchant'}
                      </span>
                  )}
-                 {/* Show not found message based on effective userData state */}
+                 {/* Show not found message */}
                  {userData === undefined && !isLoading && (
-                     <p className="text-sm text-red-600 mt-1">You didn't create/own any NFTs in our platform.</p>
+                     <p className="text-sm text-red-600 mt-1">Wallet data not found in our records.</p>
+                 )}
+                 {/* Handle initializing state */}
+                 {userData === null && !isLoading && (
+                      <p className="text-sm text-orange-600 mt-1">User data is initializing...</p>
                  )}
             </div>
             <div className="flex-shrink-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-                {/* Simulation buttons only in test mode */}
-                {testMode && (
-                    <button
-                       onClick={handleSimulateConnectWallet} // Cycle through wallets
-                       className="w-full sm:w-auto px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
-                    >
-                        Switch Wallet (Simulate)
-                    </button>
-                )}
-                 <button
-                    onClick={testMode ? handleSimulateDisconnectWallet : disconnectWallet}
-                    className="w-full sm:w-auto px-3 py-2 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200 transition-colors"
-                 >
-                    Disconnect
-                 </button>
+                 {/* Test mode button */} 
+                 {testMode && ( <button onClick={handleSimulateConnectWallet} /* ... */> Switch Wallet (Simulate) </button> )}
+                 {/* Disconnect button */} 
+                 <button onClick={testMode ? handleSimulateDisconnectWallet : disconnectWallet} /* ... */> Disconnect </button>
             </div>
          </div>
 
-        {/* Owned Recipes Section */}
+        {/* Owned Recipes Section (Show for everyone) */}
         <div className="mb-12">
           <h2 className="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">
             My Owned NFTs
@@ -222,7 +316,7 @@ const MyRecipesPage: React.FC = () => {
             <div className="text-center py-8 bg-gray-100 rounded-lg">
               <p className="text-gray-600 mb-4">You don't hold any recipe NFTs associated with this wallet.</p>
               <Link
-                to="/explore" // Link to explore page to find NFTs
+                to="/explore"
                 className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
               >
                 Go Explore
@@ -231,9 +325,10 @@ const MyRecipesPage: React.FC = () => {
           )}
         </div>
 
-        {/* Created Recipes Section */}
+        {/* Created Recipes Section (Adapt title/button based on user type) */}
         <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">
+            {/* Adapt title based on merchant status */}
             {userData?.isMerchant ? 'My Creations' : 'My Created Recipe NFTs'}
           </h2>
           {(userData && createdRecipes.length > 0) ? (
@@ -245,28 +340,41 @@ const MyRecipesPage: React.FC = () => {
           ) : (
             <div className="text-center py-8 bg-gray-100 rounded-lg">
               <p className="text-gray-600 mb-4">
-                {userData?.isMerchant 
-                  ? "You haven't listed any creations yet." 
+                {/* Adapt empty state message */}
+                {userData?.isMerchant
+                  ? "You haven't listed any creations yet."
                   : "You haven't created any NFTs with this wallet yet."
                 }
               </p>
                <div className="space-x-4">
-                 {/* Conditional Button Logic (uses effective userData) */}
-                 {(userData?.isMerchant && !userData.isverified) ? (
-                    <button
-                        onClick={handleOpenVerifyModal} // Opens the verification modal
-                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                    >
-                        Start Verification
-                    </button>
-                 ) : (
-                    <Link
-                        to="/create" // Changed link to /create for simplicity
-                        className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                    >
-                        {userData?.isMerchant ? 'Create My First Creation' : 'Create My First Recipe'}
-                    </Link>
+                 {/* Conditional Buttons: Verify for unverified merchants, Create for verified merchants/users */}
+                 {userData?.isMerchant && !userData.isverified && (
+                     <button
+                         onClick={() => alert('You can create the first NFT after verification')}
+                         className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                     >
+                         Create The First NFT
+                     </button>
                  )}
+                 
+                 {/* Show Create button for Verified Merchants OR regular users */} 
+                 {/* Regular users link to /create (old recipe page), Merchants use the modal */}
+                 {(userData?.isMerchant && userData.isverified) ? (
+                     <button
+                         onClick={handleOpenNftTypeModal} // Opens Coupon/Membership choice
+                         className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                     >
+                         Create New NFT
+                     </button>
+                 ) : (!userData?.isMerchant && (
+                     // Link for regular users (if they can create standard recipes)
+                     <Link 
+                       to="/create" // Assuming /create is for standard recipes
+                       className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                     >
+                       Create Recipe NFT
+                     </Link>
+                 ))}
                 </div>
             </div>
           )}
@@ -285,15 +393,34 @@ const MyRecipesPage: React.FC = () => {
         {renderContent()}
       </div>
 
-      {/* Render the Verification Input Modal */}
-      {connectedWallet && (
+      {/* Modals */}
+      {/* Post-Connection Verification Modal (for unverified merchants) */}
+      {connectedWallet && userData?.isMerchant && !userData.isverified && !testMode && (
         <MerchantVerificationInputModal
           isOpen={isVerifyModalOpen}
           onClose={() => setIsVerifyModalOpen(false)}
-          onSubmit={handleVerificationSubmit}
-          merchantId={connectedWallet} // Pass the wallet ID as merchantId
+          onSubmit={handleVerificationSubmit} 
+          merchantId={connectedWallet} 
         />
       )}
+      {/* Pre-Connection Verification Modal */}
+      {!testMode && !globalConnectedWallet && (
+          <MerchantVerificationInputModal
+            isOpen={isPreVerifyModalOpen}
+            onClose={() => setIsPreVerifyModalOpen(false)}
+            onSubmit={handlePreVerificationSubmit}
+            merchantId={"PRE_VERIFY"}
+          />
+      )}
+       {/* NFT Type Selection Modal (for verified merchants) */}
+       {userData?.isMerchant && userData.isverified && (
+         <NftTypeSelectionModal
+           isOpen={isNftTypeModalOpen}
+           onClose={() => setIsNftTypeModalOpen(false)}
+           onSelectCoupon={handleSelectCoupon}
+           onSelectMembership={handleSelectMembership}
+         />
+       )}
     </div>
   );
 };

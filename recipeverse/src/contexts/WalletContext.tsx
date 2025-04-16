@@ -2,19 +2,15 @@ import React, { createContext, useState, useContext, useEffect, ReactNode, useCa
 import { UserData, fetchUserDataByWallet } from '../data/dummyUserData';
 import { testMode } from '../test/testConfig'; // Import from config file
 
-// --- Configuration ---
-// testMode is now imported from ../test/testConfig.ts
-// const testMode = true; // Removed local definition
-// --- End Configuration ---
-
 interface WalletContextState {
   connectedWallet: string | null;
   userData: UserData | null | undefined; // null: initial, undefined: not found after fetch
   isLoading: boolean;
   isMetaMaskInstalled: boolean;
   testMode: boolean;
-  connectWallet: () => Promise<void>;
+  connectWallet: () => Promise<{ walletId: string | null; userData: UserData | null | undefined }>;
   disconnectWallet: () => void;
+  updateUserData: (userData: UserData | null | undefined) => void;
 }
 
 const WalletContext = createContext<WalletContextState | undefined>(undefined);
@@ -63,69 +59,76 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 //   };
 
 
-  const fetchDataForWallet = useCallback(async (walletId: string) => {
-    if (!walletId) return;
+  const fetchDataForWallet = useCallback(async (walletId: string): Promise<UserData | undefined> => {
+    if (!walletId) return undefined;
     setIsLoading(true);
     setUserData(null); // Reset user data while fetching
     console.log(`Fetching data for wallet: ${walletId}`);
-    // Simulate API call delay even for dummy data
-    await new Promise(resolve => setTimeout(resolve, 300)); 
+    await new Promise(resolve => setTimeout(resolve, 300));
+    let data: UserData | undefined = undefined;
     try {
-      const data = fetchUserDataByWallet(walletId); // Use existing dummy data fetcher
-      setUserData(data); // Will be UserData or undefined
+      data = fetchUserDataByWallet(walletId);
+      setUserData(data); // Update context state
       console.log("Fetched user data:", data);
     } catch (error) {
       console.error("Error fetching user data:", error);
       setUserData(undefined); // Indicate fetch error/not found
+      data = undefined;
     } finally {
       setIsLoading(false);
     }
+    return data; // Return the fetched data
   }, []);
 
-  const connectWallet = useCallback(async () => {
+  const connectWallet = useCallback(async (): Promise<{ walletId: string | null; userData: UserData | null | undefined }> => {
      if (testMode) {
-         console.warn("ConnectWallet called in test mode. No action taken. Use simulated login.");
-         return;
+         console.warn("ConnectWallet called in test mode.");
+         return { walletId: null, userData: undefined };
      }
     if (!isMetaMaskInstalled) {
-      alert('MetaMask is not installed. Please install it to connect your wallet.');
+      alert('MetaMask is not installed.');
       console.error('MetaMask not installed.');
-      return;
+      return { walletId: null, userData: undefined };
     }
 
     setIsLoading(true);
+    let connectedWalletId: string | null = null;
+    let finalUserData: UserData | null | undefined = null;
+
     try {
-      // Request account access
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' }) as string[];
-      
       if (accounts && accounts.length > 0) {
         const walletId = accounts[0];
         console.log('MetaMask connected:', walletId);
-        setConnectedWallet(walletId);
-        // Fetch associated user data after connecting
-        await fetchDataForWallet(walletId); 
+        setConnectedWallet(walletId); // Update context state
+        connectedWalletId = walletId; // Store locally for return value
+        finalUserData = await fetchDataForWallet(walletId);
       } else {
          console.warn('No accounts returned from MetaMask.');
          setConnectedWallet(null);
          setUserData(null);
+         // walletId remains null, userData remains null
+         setIsLoading(false);
       }
     } catch (error: any) {
       if (error.code === 4001) {
-        // EIP-1193 userRejectedRequest error
         console.log('User rejected MetaMask connection request.');
         alert('You rejected the connection request.');
       } else {
         console.error('Error connecting MetaMask:', error);
         alert(`Error connecting wallet: ${error.message || 'Unknown error'}`);
       }
+       console.error('Error connecting MetaMask:', error);
        setConnectedWallet(null);
        setUserData(null);
-    } finally {
-       // Loading state is handled within fetchDataForWallet if called
-       // If connection failed before fetch, set loading false here
-       if (!connectedWallet) setIsLoading(false);
-    }
-  }, [isMetaMaskInstalled, testMode, fetchDataForWallet, connectedWallet]); // Added connectedWallet dependency
+       // walletId remains null, userData remains null
+       setIsLoading(false);
+    } 
+    // Loading state should be false now either from fetchDataForWallet or error handling
+
+    return { walletId: connectedWalletId, userData: finalUserData }; // <<< Return object
+
+  }, [isMetaMaskInstalled, testMode, fetchDataForWallet]);
 
   const disconnectWallet = useCallback(() => {
      if (testMode) {
@@ -141,6 +144,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     // Note: Doesn't truly disconnect from MetaMask extension, just clears app state
   }, [testMode]);
 
+  const updateUserData = useCallback((newUserData: UserData | null | undefined) => {
+      console.log('WalletContext: Updating user data directly', newUserData);
+      setUserData(newUserData);
+  }, []);
+
   const value = {
     connectedWallet,
     userData,
@@ -149,6 +157,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     testMode,
     connectWallet,
     disconnectWallet,
+    updateUserData,
   };
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

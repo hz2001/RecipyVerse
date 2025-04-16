@@ -6,6 +6,7 @@ import UserService from '../services/userService';
 import { recipes } from '../data/dummyData';
 import MerchantProfilePage from './MerchantProfilePage';
 import { useWallet } from '../contexts/WalletContext';
+import MerchantVerificationInputModal from '../components/MerchantVerificationInputModal';
 
 const ProfilePage = () => {
   const {
@@ -20,6 +21,7 @@ const ProfilePage = () => {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState<'user' | 'merchant' | null>(null);
   const [modalMode, setModalMode] = useState<'register' | 'login'>('register');
+  const [isPreVerifyModalOpen, setIsPreVerifyModalOpen] = useState(false);
 
   const [isLoggedIn_Test, setIsLoggedIn_Test] = useState(false);
   const [isMerchant_Test, setIsMerchant_Test] = useState(false);
@@ -90,6 +92,28 @@ const ProfilePage = () => {
   const isLoggedIn = testMode ? isLoggedIn_Test : !!connectedWallet;
   const isMerchant = testMode ? isMerchant_Test : !!userData?.isMerchant;
 
+  const handleRegisterMerchantClick = () => {
+    if (testMode) return;
+    setIsPreVerifyModalOpen(true);
+  };
+
+  const handlePreVerificationSubmit = async (details: { name: string; address: string; file: File }) => {
+    if (testMode) return;
+    
+    const detailJson = {
+      merchantName: details.name,
+      address: details.address,
+      licenseFilename: `TEMP-${details.file.name}`,
+      submittedAt: new Date().toISOString(),
+    };
+    console.log("Simulating pre-verification submission:", JSON.stringify(detailJson, null, 2));
+    console.log(`Simulating save of file '${details.file.name}'`);
+
+    setIsPreVerifyModalOpen(false);
+
+    await connectWallet();
+  };
+
   if (!testMode && isLoading) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-gray-50">
@@ -110,22 +134,46 @@ const ProfilePage = () => {
               Welcome to RecipeVerse
             </h1>
             <p className="text-lg text-gray-600">
-              {testMode ? 'Choose your role to get started' : 'Connect your wallet to get started'}
+              {testMode ? 'Choose your role to get started' : 'Connect your wallet or register as a merchant'}
             </p>
           </div>
 
-          <div className="max-w-4xl mx-auto text-center mb-8">
-            <p className="text-gray-600">
-              {testMode ? 'Already have an account?' : 'Ready to connect?'}{' '}
-              <button 
-                onClick={testMode ? handleLoginClick_Test : handleConnectWallet}
-                disabled={!testMode && isLoading}
-                className="text-amber-500 hover:text-amber-600 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
+          {testMode ? (
+            <div className="max-w-4xl mx-auto text-center mb-8">
+              <p className="text-gray-600">
+                Already have an account?{' '}
+                <button 
+                  onClick={handleLoginClick_Test}
+                  className="text-amber-500 hover:text-amber-600 font-medium"
+                >
+                  Log in
+                </button>
+              </p>
+            </div>
+          ) : (
+            <div className="max-w-md mx-auto text-center mb-12 space-y-4">
+              <button
+                onClick={handleConnectWallet}
+                disabled={isLoading}
+                className="w-full px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors disabled:bg-gray-400 flex items-center justify-center space-x-2"
               >
-                {testMode ? 'Log in' : 'Connect Wallet'}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>I'm a Customer (Connect Wallet)</span>
               </button>
-            </p>
-          </div>
+              <button
+                onClick={handleRegisterMerchantClick}
+                disabled={isLoading}
+                className="w-full px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow hover:bg-blue-600 transition-colors disabled:bg-gray-400 flex items-center justify-center space-x-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <span>Register as a Merchant</span>
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             <div 
@@ -270,12 +318,10 @@ const ProfilePage = () => {
                    </svg>
                    Member
                  </div>
-                  {/* Display verification status if available from userData in real mode */}
-                  {!testMode && userData && (
+                  {!testMode && (userData !== null) && (
                       <div className="flex items-center text-gray-600">
-                        {/* Added explicit check for userData before accessing isverified */}
-                        <span className={`inline-block ml-2 px-2 py-0.5 rounded text-xs font-semibold ${userData.isverified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                            {userData.isverified ? 'Verified' : 'Unverified'}
+                        <span className={`inline-block ml-2 px-2 py-0.5 rounded text-xs font-semibold ${userData?.isverified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {(userData === undefined || !userData.isverified) ? 'Unverified' : 'Verified'}
                         </span>
                       </div>
                   )} 
@@ -347,10 +393,8 @@ const ProfilePage = () => {
 
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Favorite Recipes</h2>
-          {/* Explicitly check userData before checking NFThold */}
           {userData && (userData.NFThold?.length ?? 0) > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Nullish coalescing remains for safety within filter */}
               {recipes.filter(r => (userData.NFThold ?? []).includes(r.id)).map(recipe => (
                 <RecipeCard key={recipe.id} recipe={recipe} />
               ))}
@@ -396,6 +440,15 @@ const ProfilePage = () => {
           onComplete={handleRegisterComplete_Test}
           userType={selectedRole || 'user'}
           mode={modalMode}
+        />
+      )}
+
+      {!testMode && connectedWallet && (
+        <MerchantVerificationInputModal
+            isOpen={isPreVerifyModalOpen}
+            onClose={() => setIsPreVerifyModalOpen(false)}
+            onSubmit={handlePreVerificationSubmit}
+            merchantId={connectedWallet}
         />
       )}
     </div>
