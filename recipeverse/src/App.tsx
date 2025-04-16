@@ -6,7 +6,6 @@ import RecipeDetailPage from './pages/RecipeDetailPage'
 import CreateRecipePage from './pages/CreateRecipePage'
 import MyRecipesPage from './pages/MyRecipesPage'
 import CreateNftPage from './pages/CreateNftPage'
-import ExchangeNftPage from './pages/ExchangeNftPage'
 import CreateCouponPage from './pages/CreateCouponPage'
 import VerificationManagementPage from './pages/VerificationManagementPage'
 import SwapMarket from './pages/SwapMarket'
@@ -27,7 +26,6 @@ function App() {
                 <Route path="/create" element={<CreateRecipePage />} />
                 <Route path="/profile" element={<MyRecipesPage />} />
                 <Route path="/create-nft" element={<CreateNftPage />} />
-                <Route path="/exchange-nft" element={<ExchangeNftPage />} />
                 <Route path="/create-coupon" element={<CreateCouponPage />} />
                 <Route path="/verification_management" element={<VerificationManagementPage />} />
                 <Route path="/swap-market" element={<SwapMarket />} />
