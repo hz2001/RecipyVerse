@@ -8,6 +8,8 @@ import VerificationManagementPage from './pages/VerificationManagementPage'
 import SwapMarket from './pages/SwapMarket'
 import NftDetailPage from './pages/NftDetailPage'
 import { WalletProvider } from './contexts/WalletContext'
+import TestSupabaseConnection from './pages/TestSupabaseConnection'
+import TestNFTQueryPage from './pages/TestNFTQueryPage'
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
                 <Route path="/verification_management" element={<VerificationManagementPage />} />
                 <Route path="/swap-market" element={<SwapMarket />} />
                 <Route path="/nft/:nftId" element={<NftDetailPage />} />
+                <Route path="/test" element={<TestSupabaseConnection />} />
+                <Route path="/test-nfts" element={<TestNFTQueryPage />} />
                 <Route path="*" element={<div className="p-12 text-center">Page Not Found</div>} />
               </Routes>
             </div>

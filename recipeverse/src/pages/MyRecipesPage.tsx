@@ -6,6 +6,8 @@ import RecipeCard from '../components/RecipeCard'; // Reuse RecipeCard
 import MerchantVerificationInputModal from '../components/MerchantVerificationInputModal'; // Import the new modal
 import { useWallet } from '../contexts/WalletContext'; // Import useWallet
 import NftTypeSelectionModal from '../components/NftTypeSelectionModal'; // Import the new modal
+import { supabase } from '../utils/supabaseClient';
+import UserService from '../services/userService';
 
 // Placeholder for MetaMask icon (replace with actual SVG or component later)
 const MetaMaskIcon = () => (
@@ -42,6 +44,14 @@ const MyRecipesPage: React.FC = () => {
   ];
   // --- End State for TEST MODE --- 
 
+  // --- Supabase related state --- 
+  const [walletAddress, setWalletAddress] = useState<string>('');
+  const [isMerchant, setIsMerchant] = useState<boolean>(false);
+  const [userId, setUserId] = useState<string>('');
+  const [nfts, setNfts] = useState<any[]>([]);
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  // --- End Supabase related state --- 
+
   // State for the verification modals (pre-connect and potentially post-connect)
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false); // Post-connect modal (current logic)
   const [isPreVerifyModalOpen, setIsPreVerifyModalOpen] = useState<boolean>(false); // Pre-connect modal
@@ -55,6 +65,41 @@ const MyRecipesPage: React.FC = () => {
 
   // --- React Router Navigation ---
   const navigate = useNavigate();
+
+  // --- Supabase related functions --- 
+  const fetchNfts = async (address: string) => {
+    const { data, error } = await supabase
+        .from('nfts')
+        .select('*')
+        .eq('owner_address', address);
+    if (!error && data) {
+        setNfts(data);
+    }
+  };
+
+  const handleLogout = () => {
+    UserService.logout();
+    setWalletAddress('');
+    setIsMerchant(false);
+    setUserId('');
+    setLoggedIn(false);
+    setNfts([]);
+  };
+
+  useEffect(() => {
+    const init = async () => {
+        const user = await UserService.getCurrentUser();
+        if (user) {
+            setWalletAddress(user.wallet_address);
+            setIsMerchant(user.is_merchant);
+            setUserId(user.id);
+            setLoggedIn(true);
+            fetchNfts(user.wallet_address);
+        }
+    };
+    init();
+  }, []);
+  // --- End Supabase related functions --- 
 
   // --- Handlers for TEST MODE Simulation --- 
   const handleSimulateConnectWallet = () => {
@@ -204,6 +249,9 @@ const MyRecipesPage: React.FC = () => {
   // Filter recipes based on NFT IDs held or created by the user
   const ownedRecipes = userData ? recipes.filter(recipe => (userData?.NFThold ?? []).includes(recipe.id)) : [];
   const createdRecipes = userData ? recipes.filter(recipe => (userData?.NFTcreated ?? []).includes(recipe.id)) : [];
+  
+  // 模拟正在交换中的NFT数据 - 实际实现应该从数据库中获取
+  const ongoingSwapRecipes = ownedRecipes.slice(0, Math.min(2, ownedRecipes.length));
 
   // Render Loading State
   const renderLoading = () => (
@@ -248,20 +296,21 @@ const MyRecipesPage: React.FC = () => {
                       disabled={isLoading}
                       className="w-full px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors disabled:bg-gray-400 flex items-center justify-center space-x-2"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span>I'm a Customer</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span>I'm a Customer</span>
                   </button>
+                  
                   <button
                       onClick={handleRegisterMerchantClick} // Merchant Register
                       disabled={isLoading}
                       className="w-full px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow hover:bg-blue-600 transition-colors disabled:bg-gray-400 flex items-center justify-center space-x-2"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                    <span>Register as Merchant</span>
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                     </svg>
+                      <span>Register as Merchant</span>
                   </button>
               </div>
           )}
@@ -273,33 +322,79 @@ const MyRecipesPage: React.FC = () => {
     console.log("Rendering Connected View for user:", userData); 
     return (
       <div>
-         {/* Wallet Info and Disconnect Button */}
-         <div className="mb-8 p-4 bg-gray-100 border border-gray-200 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex-grow">
-                <p className="text-sm text-gray-600 font-medium">Connected Wallet:</p>
-                <p className="text-md text-gray-900 font-mono break-all" title={connectedWallet}>{connectedWallet}</p>
-                 {/* Display Merchant Status if applicable */}
-                 {userData?.isMerchant && (
-                     <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${userData.isverified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                         {userData.isverified ? 'Verified Merchant' : 'Unverified Merchant'}
-                     </span>
-                 )}
-                 {/* Show not found message */}
-                 {userData === undefined && !isLoading && (
-                     <p className="text-sm text-red-600 mt-1">Wallet data not found in our records.</p>
-                 )}
-                 {/* Handle initializing state */}
-                 {userData === null && !isLoading && (
-                      <p className="text-sm text-orange-600 mt-1">User data is initializing...</p>
-                 )}
+        {/* Wallet Info and Disconnect Button */}
+        <div className="mb-8 p-4 bg-gray-100 border border-gray-200 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
+           <div className="flex-grow">
+               <p className="text-sm text-gray-600 font-medium">Connected Wallet:</p>
+               <p className="text-md text-gray-900 font-mono break-all" title={connectedWallet}>{connectedWallet}</p>
+                {/* Display Merchant Status if applicable */}
+                {userData?.isMerchant && (
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${userData.isverified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {userData.isverified ? 'Verified Merchant' : 'Unverified Merchant'}
+                    </span>
+                )}
+                {/* Show not found message */}
+                {userData === undefined && !isLoading && (
+                    <p className="text-sm text-red-600 mt-1">Wallet data not found in our records.</p>
+                )}
+                {/* Handle initializing state */}
+                {userData === null && !isLoading && (
+                     <p className="text-sm text-orange-600 mt-1">User data is initializing...</p>
+                )}
+          </div>
+           <div className="flex-shrink-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                {/* Test mode button */} 
+                {testMode && (
+                    <button 
+                        onClick={handleSimulateConnectWallet}
+                        className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
+                    >
+                        Switch Wallet (Simulate)
+                    </button>
+                )}
+                {/* Disconnect button */} 
+                <button 
+                    onClick={testMode ? handleSimulateDisconnectWallet : disconnectWallet}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                >
+                    Disconnect
+                </button>
+          </div>
+        </div>
+
+        {/* Ongoing Swap Process Section - NEW! */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">
+            <span className="text-amber-500">⟳</span> Ongoing Swap Processes
+          </h2>
+          {ongoingSwapRecipes.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {ongoingSwapRecipes.map(recipe => (
+                <div key={recipe.id} className="relative">
+                  <div className="absolute top-0 right-0 bg-amber-500 text-white p-2 rounded-tr-lg rounded-bl-lg z-10">
+                    Swapping
+                  </div>
+                  <RecipeCard recipe={recipe} />
+                  <div className="mt-2 flex justify-end">
+                    <button className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
+                      Cancel Swap
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex-shrink-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-                 {/* Test mode button */} 
-                 {testMode && ( <button onClick={handleSimulateConnectWallet} /* ... */> Switch Wallet (Simulate) </button> )}
-                 {/* Disconnect button */} 
-                 <button onClick={testMode ? handleSimulateDisconnectWallet : disconnectWallet} /* ... */> Disconnect </button>
+          ) : (
+            <div className="text-center py-8 bg-gray-100 rounded-lg">
+              <p className="text-gray-600 mb-4">You don't have any ongoing swap processes.</p>
+              <Link
+                to="/swap-market"
+                className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
+              >
+                Browse Swap Market
+              </Link>
             </div>
-         </div>
+          )}
+        </div>
 
         {/* Owned Recipes Section (Show for everyone) */}
         <div className="mb-12">
@@ -316,10 +411,10 @@ const MyRecipesPage: React.FC = () => {
             <div className="text-center py-8 bg-gray-100 rounded-lg">
               <p className="text-gray-600 mb-4">You don't hold any recipe NFTs associated with this wallet.</p>
               <Link
-                to="/explore"
+                to="/swap-market"
                 className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
               >
-                Go Explore
+                Browse Swap Market
               </Link>
             </div>
           )}
@@ -346,43 +441,42 @@ const MyRecipesPage: React.FC = () => {
                   : "You haven't created any NFTs with this wallet yet."
                 }
               </p>
-               <div className="space-x-4">
-                 {/* Conditional Buttons: Verify for unverified merchants, Create for verified merchants/users */}
-                 {userData?.isMerchant && !userData.isverified && (
-                     <button
-                         onClick={() => alert('You can create the first NFT after verification')}
-                         className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                     >
-                         Create The First NFT
-                     </button>
-                 )}
-                 
-                 {/* Show Create button for Verified Merchants OR regular users */} 
-                 {/* Regular users link to /create (old recipe page), Merchants use the modal */}
-                 {(userData?.isMerchant && userData.isverified) ? (
-                     <button
-                         onClick={handleOpenNftTypeModal} // Opens Coupon/Membership choice
-                         className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                     >
-                         Create New NFT
-                     </button>
-                 ) : (!userData?.isMerchant && (
-                     // Link for regular users (if they can create standard recipes)
-                     <Link 
-                       to="/create" // Assuming /create is for standard recipes
-                       className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                     >
-                       Create Recipe NFT
-                     </Link>
-                 ))}
-                </div>
+              <div className="space-x-4">
+                {/* Conditional Buttons: Verify for unverified merchants, Create for verified merchants/users */}
+                {userData?.isMerchant && !userData.isverified && (
+                    <button
+                        onClick={() => alert('You can create the first NFT after verification')}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                    >
+                        Create The First NFT
+                    </button>
+                )}
+                
+                {/* Show Create button for Verified Merchants OR regular users */} 
+                {/* Regular users link to /create (old recipe page), Merchants use the modal */}
+                {(userData?.isMerchant && userData.isverified) ? (
+                    <button
+                        onClick={handleOpenNftTypeModal} // Opens Coupon/Membership choice
+                        className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                    >
+                        Create New NFT
+                    </button>
+                ) : (!userData?.isMerchant && (
+                    // Link for regular users (if they can create standard recipes)
+                    <Link 
+                      to="/create" // Assuming /create is for standard recipes
+                      className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                    >
+                      Create Recipe NFT
+                    </Link>
+                ))}
+              </div>
             </div>
           )}
         </div>
       </div>
     );
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-6">
@@ -399,7 +493,7 @@ const MyRecipesPage: React.FC = () => {
         <MerchantVerificationInputModal
           isOpen={isVerifyModalOpen}
           onClose={() => setIsVerifyModalOpen(false)}
-          onSubmit={handleVerificationSubmit} 
+          onSubmit={handleVerificationSubmit}
           merchantId={connectedWallet} 
         />
       )}
@@ -414,12 +508,12 @@ const MyRecipesPage: React.FC = () => {
       )}
        {/* NFT Type Selection Modal (for verified merchants) */}
        {userData?.isMerchant && userData.isverified && (
-         <NftTypeSelectionModal
-           isOpen={isNftTypeModalOpen}
-           onClose={() => setIsNftTypeModalOpen(false)}
-           onSelectCoupon={handleSelectCoupon}
-           onSelectMembership={handleSelectMembership}
-         />
+        <NftTypeSelectionModal
+          isOpen={isNftTypeModalOpen}
+          onClose={() => setIsNftTypeModalOpen(false)}
+          onSelectCoupon={handleSelectCoupon}
+          onSelectMembership={handleSelectMembership}
+        />
        )}
     </div>
   );
