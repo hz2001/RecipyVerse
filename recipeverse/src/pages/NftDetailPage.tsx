@@ -22,7 +22,7 @@ const fetchNftDetails = async (id: string): Promise<Nft | null> => {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
     // Find in mock data or fetch from backend
-    // Using a combined mock list for simplicity here, replace with actual API
+    // TODO:Using a combined mock list for simplicity here, replace with actual API
     const mockMarketNfts: Nft[] = [
         { id: 'market1', name: 'Coffee Coupon', merchantName: 'Cafe Central', expirationDate: '2024-12-31', benefits: ['Free Espresso'], ownerId: 'user456', imageUrl: '/placeholder-images/coffee.jpg', description: 'Enjoy a free espresso on us! Valid any day.', contractAddress: '0x123', tokenId: '1' },
         { id: 'market2', name: 'Movie Ticket', merchantName: 'Cinema Plex', expirationDate: '2024-11-30', benefits: ['50% off Popcorn'], ownerId: 'user789', imageUrl: '/placeholder-images/movie.jpg', description: 'One free admission to any regular screening. Excludes 3D/IMAX. Also get 50% off a large popcorn.', contractAddress: '0x456', tokenId: '2' },
@@ -166,10 +166,8 @@ function NftDetailPage() {
                 <span className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full mr-2 mb-1">
                   {nftDetails.merchantName || 'NFT'}
                 </span>
-                <span className="text-xs sm:text-sm opacity-80">Expires: {nftDetails.expirationDate || 'No expiration'}</span>
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 line-clamp-2">{nftDetails.name}</h1>
-              <p className="text-xs sm:text-sm opacity-80 truncate">Owner ID: {nftDetails.ownerId || 'Unknown'}</p>
             </div>
           </div>
         </div>
@@ -217,6 +215,18 @@ function NftDetailPage() {
                 <p className="text-gray-600 mb-2">Token ID:</p>
                 <div className="bg-gray-100 p-3 rounded-md font-mono text-sm break-all">
                   {nftDetails.tokenId || 'Not available'}
+                </div>
+              </div>
+              <div>
+                <p className="text-gray-600 mb-2">Owner ID:</p>
+                <div className="bg-gray-100 p-3 rounded-md font-mono text-sm break-all">
+                  {nftDetails.ownerId || 'Unknown'}
+                </div>
+              </div>
+              <div>
+                <p className="text-gray-600 mb-2">Expiration Date:</p>
+                <div className="bg-gray-100 p-3 rounded-md text-sm">
+                  {nftDetails.expirationDate || 'No expiration'}
                 </div>
               </div>
             </div>

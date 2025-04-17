@@ -11,6 +11,7 @@ const CreateCouponPage: React.FC = () => {
   const navigate = useNavigate();
   const { userData, testMode } = useWallet(); // Get user data from context
 
+  const [couponName, setCouponName] = useState<string>('');
   const [couponType, setCouponType] = useState<'Cash' | 'Discount' | 'Food'>('Cash');
   const [benefit, setBenefit] = useState<string>('');
   const [expireDate, setExpireDate] = useState<string>('');
@@ -53,6 +54,10 @@ const CreateCouponPage: React.FC = () => {
 
   const validateForm = (): boolean => {
     setError(null);
+    if (!couponName.trim()) {
+      setError('Coupon name is required.');
+      return false;
+    }
     if (!benefit.trim()) {
       setError('Benefit description is required.');
       return false;
@@ -99,6 +104,7 @@ const CreateCouponPage: React.FC = () => {
 
     // Prepare data (simulate what would be sent to backend/smart contract)
     const formData = {
+      couponName,
       couponType,
       benefit,
       expireDate,
@@ -125,7 +131,7 @@ const CreateCouponPage: React.FC = () => {
       const newCouponData = {
           id: newNftId,
           type: 'coupon', // Add a type identifier
-          name: `${couponType} Coupon`, // Example name
+          name: couponName, // Use the custom coupon name
           description: benefit,
           imageUrl: imagePreview || '/placeholder-image.png', // Use preview or a default
           creator: userData?.userWalletID,
@@ -181,6 +187,20 @@ const CreateCouponPage: React.FC = () => {
           <p className="text-red-600">Only verified merchants can create Coupon NFTs.</p>
       ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
+
+            {/* Coupon Name */}
+            <div>
+              <label htmlFor="couponName" className="block text-sm font-medium text-gray-700 mb-1">Coupon Name <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                id="couponName"
+                value={couponName}
+                onChange={(e) => setCouponName(e.target.value)}
+                required
+                placeholder="e.g., Summer Coffee Discount, Weekend Brunch Special"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+              />
+            </div>
 
             {/* Coupon Type */} 
             <div>
