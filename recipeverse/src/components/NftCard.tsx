@@ -1,6 +1,5 @@
 import React from 'react';
-// Removed MUI Card imports, kept Typography for now
-import { Typography } from '@mui/material'; 
+// Removed MUI Typography import
 
 // Reusing the Nft interface
 interface Nft {
@@ -11,6 +10,7 @@ interface Nft {
   expirationDate?: string;
   benefits?: string[];
   ownerId?: string;
+  description?: string; // Added description for detail view
 }
 
 interface NftCardProps {
@@ -28,7 +28,7 @@ const NftCard: React.FC<NftCardProps> = ({ nft, onClick, isSelected }) => {
   };
 
   // Base classes
-  const baseClasses = "border rounded-lg overflow-hidden shadow-md h-full flex flex-col";
+  const baseClasses = "border rounded-lg overflow-hidden shadow-md h-full flex flex-col bg-white";
   // Conditional classes for selection and clickability
   const conditionalClasses = `
     ${onClick ? 'cursor-pointer hover:shadow-lg transition-shadow duration-200' : ''}
@@ -41,7 +41,7 @@ const NftCard: React.FC<NftCardProps> = ({ nft, onClick, isSelected }) => {
         onClick={handleClick}
     >
       {/* Image Section */}
-      <div className="w-full h-40 bg-gray-200 flex items-center justify-center">
+      <div className="w-full h-40 bg-gray-200 flex items-center justify-center text-gray-500">
         {nft.imageUrl ? (
           <img
             src={nft.imageUrl} 
@@ -49,31 +49,35 @@ const NftCard: React.FC<NftCardProps> = ({ nft, onClick, isSelected }) => {
             className="w-full h-full object-cover" // Tailwind classes for image cover
           />
         ) : (
-           <Typography variant="caption" className="text-gray-500">No Image</Typography> // Can replace Typography later if needed
+           // Use standard p tag with Tailwind classes
+           <p className="text-xs">No Image</p>
         )}
       </div>
       
       {/* Content Section */}
-      <div className="p-4 flex-grow"> {/* Use padding utilities */} 
-        <Typography 
-            gutterBottom 
-            variant="h6" 
-            component="div" 
-            className="font-semibold truncate" // Tailwind classes for bold text and truncation
-        >
+      <div className="p-3 flex-grow"> {/* Adjusted padding slightly */} 
+         {/* Use h6 tag with Tailwind classes */}
+        <h6 className="font-semibold text-base truncate mb-1"> 
           {nft.name}
-        </Typography>
-        <Typography variant="body2" className="text-gray-600 text-sm mb-1"> {/* Tailwind text style and margin */} 
+        </h6>
+         {/* Use p tags with Tailwind classes */}
+        <p className="text-gray-600 text-sm mb-1"> 
           Merchant: {nft.merchantName || 'N/A'}
-        </Typography>
-        <Typography variant="body2" className="text-gray-600 text-sm mb-1"> {/* Tailwind text style and margin */} 
+        </p>
+        <p className="text-gray-600 text-sm mb-1"> 
           Expires: {nft.expirationDate || 'N/A'}
-        </Typography>
+        </p>
         {nft.benefits && nft.benefits.length > 0 && (
-             <Typography variant="body2" className="text-gray-600 text-sm mt-2"> {/* Tailwind text style and margin */} 
+            <p className="text-gray-600 text-sm mt-2"> 
                 Benefits: {nft.benefits.join(', ')}
-            </Typography>
+            </p>
         )}
+         {/* Optionally show truncated description on card */}
+         {/* {nft.description && (
+            <p className="text-gray-500 text-xs mt-2 line-clamp-2"> 
+                {nft.description}
+            </p>
+         )} */} 
       </div>
     </div>
   );

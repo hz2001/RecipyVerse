@@ -9,6 +9,7 @@ import CreateNftPage from './pages/CreateNftPage'
 import CreateCouponPage from './pages/CreateCouponPage'
 import VerificationManagementPage from './pages/VerificationManagementPage'
 import SwapMarket from './pages/SwapMarket'
+import NftDetailPage from './pages/NftDetailPage'
 import { WalletProvider } from './contexts/WalletContext'
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
                 <Route path="/create-coupon" element={<CreateCouponPage />} />
                 <Route path="/verification_management" element={<VerificationManagementPage />} />
                 <Route path="/swap-market" element={<SwapMarket />} />
+                <Route path="/nft/:nftId" element={<NftDetailPage />} />
                 <Route path="*" element={<div className="p-12 text-center">Page Not Found</div>} />
               </Routes>
             </div>

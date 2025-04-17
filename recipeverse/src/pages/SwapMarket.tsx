@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, CircularProgress, Modal } from '@mui/material';
-// Use the newly created NftCard
+import { useLocation, useNavigate } from 'react-router-dom'; // Import hooks
+import { Button, CircularProgress, Modal } from '@mui/material';
 import NftCard from '../components/NftCard'; 
-// Placeholder for fetching functions and types
-// import { fetchUserNFTs, fetchMarketNFTs, markNFTForSwap, initiateSwap } from '../utils/api'; // Placeholder
-// import { Nft } from '../types'; // Placeholder for NFT type
 
-// Placeholder Type for NFT data - Replace with actual type
-// Consider moving this to a shared types file (e.g., src/types/index.ts)
+// Interface potentially moved to a shared types file
 interface Nft {
   id: string;
   name: string;
@@ -15,344 +11,367 @@ interface Nft {
   merchantName?: string;
   expirationDate?: string;
   benefits?: string[];
-  ownerId?: string; // Needed to differentiate user's NFTs and check ownership
-  // Add other relevant NFT properties
+  ownerId?: string; 
+  description?: string; // Ensure description is included
+  // Add ALL other relevant NFT properties needed for the detail view
+  contractAddress?: string;
+  tokenId?: string;
+  // ... etc
 }
 
 function SwapMarket() {
+  const navigate = useNavigate(); // Initialize navigate
+  const location = useLocation(); // Initialize location
+
   const [userNFTs, setUserNFTs] = useState<Nft[]>([]);
   const [marketNFTs, setMarketNFTs] = useState<Nft[]>([]);
   const [isLoadingUserNFTs, setIsLoadingUserNFTs] = useState(false);
   const [isLoadingMarket, setIsLoadingMarket] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [selectedNFTToPost, setSelectedNFTToPost] = useState<Nft | null>(null);
-  const [selectedMarketNFT, setSelectedMarketNFT] = useState<Nft | null>(null);
+  
   const [showSwapModal, setShowSwapModal] = useState(false); 
   const [selectedNftToOffer, setSelectedNftToOffer] = useState<Nft | null>(null);
 
-  // Placeholder for user ID - replace with actual user context/auth
-  const userId = 'currentUser123'; 
+  // Re-introduce state to hold the NFT being targeted for a swap, set from NftDetailPage navigation
+  const [targetNftForSwap, setTargetNftForSwap] = useState<Nft | null>(null);
 
-  // --- Data Fetching Effects ---
+  const userId = 'currentUser123'; // Placeholder
+
+  // --- MOCK DATA (Include description and other fields) ---
+  const mockMarketNfts: Nft[] = [
+      { id: 'market1', name: 'Coffee Coupon', merchantName: 'Cafe Central', expirationDate: '2024-12-31', benefits: ['Free Espresso'], ownerId: 'user456', imageUrl: '/placeholder-images/coffee.jpg', description: 'Enjoy a free espresso on us! Valid any day.', contractAddress: '0x123', tokenId: '1' },
+      { id: 'market2', name: 'Movie Ticket', merchantName: 'Cinema Plex', expirationDate: '2024-11-30', benefits: ['50% off Popcorn'], ownerId: 'user789', imageUrl: '/placeholder-images/movie.jpg', description: 'One free admission to any regular screening. Excludes 3D/IMAX. Also get 50% off a large popcorn.', contractAddress: '0x456', tokenId: '2' },
+      { id: 'posted1', name: 'Bookstore Voucher Posted', merchantName: 'Readers Corner', expirationDate: '2024-10-31', benefits: ['$5 off purchase'], ownerId: userId, imageUrl: '/placeholder-images/books.jpg', description: 'Get $5 off any purchase over $20.', contractAddress: '0x789', tokenId: '3' }, 
+  ];
+  const mockUserNfts: Nft[] = [
+      { id: 'user1', name: 'Restaurant Discount', merchantName: 'Pasta Place', expirationDate: '2025-01-15', benefits: ['10% off total bill'], ownerId: userId, imageUrl: '/placeholder-images/restaurant.jpg', description: 'A tasty 10% discount on your entire bill. Max discount $20.', contractAddress: '0xabc', tokenId: '4' },
+  ];
+
+  // --- UseEffect to handle navigation state from NftDetailPage ---
+  useEffect(() => {
+      const locationState = location.state as { triggerSwapForNft?: Nft };
+      if (locationState?.triggerSwapForNft) {
+          console.log("Swap initiated from Detail Page for:", locationState.triggerSwapForNft);
+          // Set the target NFT and immediately open the 'Select Your NFT' modal
+          setTargetNftForSwap(locationState.triggerSwapForNft);
+          // Clear the state from location history to prevent re-triggering on refresh/back
+          navigate(location.pathname, { replace: true, state: {} }); 
+          // Call the handler that opens the modal
+          handleInitiateSwap(locationState.triggerSwapForNft);
+      }
+  }, [location.state, navigate]); // Depend on location.state
+
+  // --- Data Fetching & Handlers (Modified/Added) ---
   useEffect(() => {
     loadMarketNFTs();
   }, []);
 
   const loadMarketNFTs = async () => {
     setIsLoadingMarket(true);
-    console.log("Fetching market NFTs..."); // Placeholder log
     try {
-        // Mock Data
-        const mockMarketNfts: Nft[] = [
-            { id: 'market1', name: 'Coffee Coupon', merchantName: 'Cafe Central', expirationDate: '2024-12-31', benefits: ['Free Espresso'], ownerId: 'user456', imageUrl: '/placeholder-images/coffee.jpg' },
-            { id: 'market2', name: 'Movie Ticket', merchantName: 'Cinema Plex', expirationDate: '2024-11-30', benefits: ['50% off Popcorn'], ownerId: 'user789', imageUrl: '/placeholder-images/movie.jpg' },
-            { id: 'posted1', name: 'Bookstore Voucher Posted', merchantName: 'Readers Corner', expirationDate: '2024-10-31', benefits: ['$5 off purchase'], ownerId: userId, imageUrl: '/placeholder-images/books.jpg' }, // Example of user's own posted item
-        ];
-        // const nfts = await fetchMarketNFTs(); // Real API call
-        // Filter out NFTs owned by the current user for the main market view
-        setMarketNFTs(mockMarketNfts.filter(nft => nft.ownerId !== userId)); 
-        // Note: The logic might need adjustment based on how "posted" NFTs are handled by the backend
+      setMarketNFTs(mockMarketNfts.filter(nft => nft.ownerId !== userId));
     } catch (error) {
       console.error("Error fetching market NFTs:", error);
-      setMarketNFTs([]); // Clear on error
+      setMarketNFTs([]);
     } finally {
       setIsLoadingMarket(false);
     }
   };
 
   const loadUserNFTs = async () => {
-    if (!userId) return; // Or handle anonymous users
     setIsLoadingUserNFTs(true);
-    console.log("Fetching user NFTs..."); // Placeholder log
     try {
-        // Mock Data - Should ideally filter out NFTs already posted for swap
-         const mockUserNfts: Nft[] = [
-            { id: 'user1', name: 'Restaurant Discount', merchantName: 'Pasta Place', expirationDate: '2025-01-15', benefits: ['10% off total bill'], ownerId: userId, imageUrl: '/placeholder-images/restaurant.jpg' },
-            // { id: 'user2', name: 'Bookstore Voucher', merchantName: 'Readers Corner', expirationDate: '2024-10-31', benefits: ['$5 off purchase'], ownerId: userId, imageUrl: '/placeholder-images/books.jpg' }, // This one is potentially posted
-        ];
-      // const nfts = await fetchUserNFTs(userId); // Real API call
       // Filter out NFTs currently in a swap process if the API doesn't
       setUserNFTs(mockUserNfts);
     } catch (error) {
       console.error("Error fetching user NFTs:", error);
-      setUserNFTs([]); // Clear on error
+      setUserNFTs([]);
     } finally {
       setIsLoadingUserNFTs(false);
     }
   };
 
-  // --- Event Handlers ---
   const handleOpenPostModal = () => {
-    setSelectedNFTToPost(null); // Reset selection when opening
-    loadUserNFTs(); // Fetch user NFTs when modal is opened
-    setIsPostModalOpen(true); // Open the modal
+    setSelectedNFTToPost(null); 
+    loadUserNFTs(); 
+    setIsPostModalOpen(true); 
   };
 
   const handleClosePostModal = () => {
       setIsPostModalOpen(false);
-      setSelectedNFTToPost(null); // Clear selection on close
+      setSelectedNFTToPost(null); 
   }
 
   const handleSelectNFTToPost = (nft: Nft) => {
       setSelectedNFTToPost(nft);
-      console.log("Selected NFT to post:", nft); 
   };
 
   const handleConfirmPostToMarket = async () => {
     if (!selectedNFTToPost) return;
-    console.log("Confirming post to market:", selectedNFTToPost); 
-    // Add loading state specific to modal if needed
+    console.log("Confirming post to market:", selectedNFTToPost);
     try {
-        // await markNFTForSwap(selectedNFTToPost.id, userId); // Real API call
-        console.log("Simulating marking NFT for swap...");
+        // await markNFTForSwap(selectedNFTToPost.id, userId);
         alert('NFT posted to swap market!'); 
-        
-        // Close modal first
         handleClosePostModal();
-        
-        // Refresh market NFTs
         loadMarketNFTs(); 
-
     } catch (error) {
         console.error("Error posting NFT to market:", error);
         alert('Failed to post NFT.'); 
-        // Keep modal open on error?
-    } finally {
-        // Stop loading state here
     }
   };
 
+  // Updated: Navigates to NftDetailPage
   const handleMarketNFTClick = (nft: Nft) => {
-      if (nft.ownerId === userId) return; // Should already be filtered, but double-check
-      setSelectedMarketNFT(nft);
-      console.log("Selected market NFT:", nft); 
+      if (nft.ownerId === userId) return; 
+      console.log(`Navigating to detail page for NFT: ${nft.id}`);
+      // Pass the NFT data along in state to potentially avoid re-fetch on detail page
+      navigate(`/nft/${nft.id}`, { state: { nftData: nft } }); 
   };
 
-   const handleCancelMarketSelection = () => {
-        setSelectedMarketNFT(null);
-   }
-  
-  const handleInitiateSwapClick = () => {
-      if (!selectedMarketNFT) return;
-      console.log("Initiating swap for:", selectedMarketNFT); 
-      setSelectedNftToOffer(null); // Reset selection
-      loadUserNFTs(); // Ensure user NFTs are loaded for the modal
-      setShowSwapModal(true); 
+  // Updated: Opens the modal to select user's NFT, now takes target NFT as argument
+  const handleInitiateSwap = (targetNft: Nft) => {
+      // Removed console log from here, already logged in useEffect
+      // Removed handleCloseDetailModal call
+      setSelectedNftToOffer(null); 
+      loadUserNFTs(); // Load user's NFTs to select from
+      setTargetNftForSwap(targetNft); // Ensure target is set (might be redundant if called from useEffect)
+      setShowSwapModal(true); // Open the modal to select user's NFT
   };
 
    const handleCloseSwapModal = () => {
         setShowSwapModal(false);
         setSelectedNftToOffer(null);
+        setTargetNftForSwap(null); // Clear the target when closing modal
    }
 
   const handleSelectNFTForSwap = (nftToOffer: Nft) => {
       setSelectedNftToOffer(nftToOffer);
-      console.log("Selected own NFT to offer:", nftToOffer); 
   };
 
+  // Uses selectedNftToOffer (user's) and targetNftForSwap (market's)
   const handleConfirmSwap = async () => {
-      if (!selectedMarketNFT || !selectedNftToOffer) return;
-      console.log(`Confirming swap: Offering ${selectedNftToOffer.name} (${selectedNftToOffer.id}) for ${selectedMarketNFT.name} (${selectedMarketNFT.id})`);
-       // Add loading state here
+      if (!targetNftForSwap || !selectedNftToOffer) return;
+      console.log(`Confirming swap: Offering ${selectedNftToOffer.name} (${selectedNftToOffer.id}) for ${targetNftForSwap.name} (${targetNftForSwap.id})`);
       try {
-          // await initiateSwap(userId, selectedNftToOffer.id, selectedMarketNFT.id, selectedMarketNFT.ownerId); // Real API Call
-           console.log("Simulating swap execution...");
-           alert('Swap initiated successfully! Ownership will be updated.'); // Placeholder feedback
-          // Reset state and refresh data
+          // await initiateSwap(userId, selectedNftToOffer.id, targetNftForSwap.id, targetNftForSwap.ownerId);
+           alert('Swap initiated successfully! Ownership will be updated.'); 
           setShowSwapModal(false);
-          setSelectedMarketNFT(null);
           setSelectedNftToOffer(null);
-          loadMarketNFTs(); // Refresh market (removes swapped item)
-          loadUserNFTs(); // Refresh user NFTs (removes offered item, potentially adds received item)
+          setTargetNftForSwap(null); // Clear target state
+          loadMarketNFTs(); 
+          loadUserNFTs(); 
       } catch (error) {
           console.error("Error initiating swap:", error);
-          alert('Swap failed.'); // Placeholder feedback
-      } finally {
-          // Stop loading state here
+          alert('Swap failed.'); 
       }
   };
 
-
   // --- Rendering --- 
   return (
-    <div className="flex-grow p-3 md:p-6">
-      <Typography variant="h4" gutterBottom className="mb-4">
-        Swap Market
-      </Typography>
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white py-12 px-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-10">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+            Swap Market
+          </h1>
+          <p className="text-lg text-gray-600">
+            Exchange your NFTs with others in the community
+          </p>
+        </div>
 
-      {/* --- Begin Swap Section Trigger --- */}
-      <div className="mb-6">
-           {/* Button now opens the modal */}
-            <Button variant="contained" onClick={handleOpenPostModal} className="bg-amber-500 hover:bg-amber-600 text-white">
-                Begin a Swap (Post Your NFT)
-            </Button>
+        {/* Post NFT Button Section */}
+        <div className="mb-8">
+          <button 
+            onClick={handleOpenPostModal} 
+            className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-md font-medium transition-colors shadow-md"
+          >
+            Post an NFT for Swap
+          </button>
+        </div>
+
+        {/* Market NFTs Section */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <h3 className="text-xl font-semibold mb-6 text-gray-800">Available for Swap</h3>
+          
+          {isLoadingMarket ? (
+            <div className="flex justify-center p-5">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
+            </div>
+          ) : marketNFTs.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {marketNFTs.map((nft) => (
+                <NftCard 
+                  key={nft.id}
+                  nft={nft} 
+                  onClick={handleMarketNFTClick}
+                />
+              ))} 
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-16 w-16 mx-auto text-gray-400 mb-4" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={1.5} 
+                  d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                />
+              </svg>
+              <h3 className="text-xl font-medium text-gray-600 mb-2">No NFTs available</h3>
+              <p className="text-gray-500">There are currently no NFTs available for swap.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Your Posted NFTs Section */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-xl font-semibold mb-6 text-gray-800">Your Posted NFTs</h3>
+          
+          {isLoadingMarket ? (
+            <div className="flex justify-center p-5">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
+            </div>
+          ) : mockMarketNfts.filter(nft => nft.ownerId === userId).length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {mockMarketNfts.filter(nft => nft.ownerId === userId).map((nft) => (
+                <NftCard 
+                  key={nft.id}
+                  nft={nft}
+                  onClick={() => {}}
+                />
+              ))} 
+            </div>
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-gray-500">You haven't posted any NFTs for swap yet.</p>
+            </div>
+          )}
+        </div>
       </div>
 
-       {/* --- Post NFT Modal --- */}
-       <Modal
-            open={isPostModalOpen}
-            onClose={handleClosePostModal} // Close when clicking backdrop
-            aria-labelledby="post-nft-modal-title"
-            aria-describedby="post-nft-modal-description"
-       >
-           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-2xl bg-white border-2 border-gray-300 shadow-xl p-4 md:p-6 max-h-[80vh] overflow-y-auto rounded-md">
-                <Typography id="post-nft-modal-title" variant="h6" component="h2" className="mb-4">
-                    Select Your NFT to Post
-                </Typography>
-                <div id="post-nft-modal-description" className="mt-2">
-                    {isLoadingUserNFTs ? (
-                        <div className="flex justify-center p-3">
-                           <CircularProgress className="text-amber-500" />
-                        </div>
-                    ) : userNFTs.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                            {userNFTs.map((nft) => (
-                                <NftCard 
-                                    key={nft.id}
-                                    nft={nft} 
-                                    onClick={handleSelectNFTToPost} 
-                                    isSelected={selectedNFTToPost?.id === nft.id}
-                                />
-                            ))} 
-                        </div>
-                    ) : (
-                        <Typography>You don't have any eligible NFTs available to post for swap.</Typography>
-                    )}
-                </div>
-                {/* Modal Footer Buttons */} 
-                 {userNFTs.length > 0 && !isLoadingUserNFTs && (
-                    <div className="mt-5 flex justify-end gap-2">
-                        <Button 
-                            variant="outlined" 
-                            color="secondary" 
-                            onClick={handleClosePostModal}
-                            disabled={isLoadingUserNFTs}
-                            className="border-gray-500 text-gray-600 hover:bg-gray-100"
-                        >
-                            Cancel
-                        </Button>
-                         <Button 
-                            variant="contained" 
-                            color="primary" 
-                            onClick={handleConfirmPostToMarket}
-                            disabled={!selectedNFTToPost || isLoadingUserNFTs}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                            Confirm & Post NFT
-                        </Button>
-                    </div>
-                )}
-                {userNFTs.length === 0 && !isLoadingUserNFTs && (
-                    <div className="mt-5 text-right">
-                        <Button 
-                            variant="outlined" 
-                            color="secondary" 
-                            onClick={handleClosePostModal}
-                            className="border-gray-500 text-gray-600 hover:bg-gray-100"
-                        >
-                            Close
-                        </Button>
-                    </div>
-                )}
-           </div>
-       </Modal>
-
-      {/* --- Section to display NFTs available on the market --- */}
-      <Typography variant="h5" gutterBottom className="mt-6 mb-3">Available for Swap</Typography>
-      {isLoadingMarket ? (
-        <div className="flex justify-center p-5">
-             <CircularProgress className="text-amber-500" />
+      {/* Post NFT Modal */}
+      {isPostModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-6 text-gray-800">
+              Select Your NFT to Post
+            </h2>
+            {isLoadingUserNFTs ? (
+              <div className="flex justify-center p-5">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
+              </div>
+            ) : userNFTs.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                {userNFTs.map((nft) => (
+                  <div 
+                    key={nft.id}
+                    onClick={() => handleSelectNFTToPost(nft)}
+                    className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
+                      selectedNFTToPost?.id === nft.id 
+                        ? 'border-amber-500 ring-2 ring-amber-500' 
+                        : 'border-gray-200 hover:border-amber-300'
+                    }`}
+                  >
+                    <NftCard 
+                      nft={nft} 
+                      onClick={handleSelectNFTToPost}
+                      isSelected={selectedNFTToPost?.id === nft.id}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600 mb-6">You don't have any eligible NFTs available to post for swap.</p>
+            )}
+            <div className="flex justify-end space-x-4">
+              <button 
+                onClick={handleClosePostModal}
+                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmPostToMarket}
+                disabled={!selectedNFTToPost || isLoadingUserNFTs}
+                className={`px-6 py-2 bg-amber-500 text-white rounded-md ${
+                  !selectedNFTToPost || isLoadingUserNFTs 
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : 'hover:bg-amber-600'
+                } transition-colors`}
+              >
+                Confirm & Post NFT
+              </button>
+            </div>
+          </div>
         </div>
-      ) : marketNFTs.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-           {marketNFTs.map((nft) => (
-            <NftCard 
-                key={nft.id}
-                nft={nft} 
-                onClick={handleMarketNFTClick}
-                isSelected={selectedMarketNFT?.id === nft.id} 
-            />
-           ))} 
-        </div>
-      ) : (
-          <Typography className="text-gray-500">No NFTs currently available for swap.</Typography>
       )}
 
-       {/* --- Swap Initiation Button Area (shown when a market NFT is selected) --- */}
-       {selectedMarketNFT && (
-           <div className="mt-6 text-center p-4 border border-dashed border-blue-300 rounded-md bg-blue-50">
-                <Typography gutterBottom className="mb-3">Selected for Swap: <strong className="font-semibold">{selectedMarketNFT.name}</strong> from {selectedMarketNFT.merchantName || 'Unknown Merchant'}</Typography> 
-               <Button 
-                   variant="contained" 
-                   color="success" 
-                   onClick={handleInitiateSwapClick}
-                   className="mr-2 bg-green-600 hover:bg-green-700 text-white"
-               >
-                   Swap For This
-               </Button>
-                <Button 
-                    variant="outlined" 
-                    color="secondary" 
-                    onClick={handleCancelMarketSelection}
-                    className="border-gray-500 text-gray-600 hover:bg-gray-100"
-                >
-                    Cancel Selection
-                </Button>
-           </div>
-       )}
-
-       {/* --- Swap Modal --- */}
-       <Modal
-            open={showSwapModal}
-            onClose={handleCloseSwapModal}
-            aria-labelledby="swap-modal-title"
-            aria-describedby="swap-modal-description"
-        >
-           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-2xl bg-white border-2 border-gray-300 shadow-xl p-4 md:p-6 max-h-[80vh] overflow-y-auto rounded-md">
-               <Typography id="swap-modal-title" variant="h6" component="h2" className="mb-4">
-                   Select Your NFT to Offer for {selectedMarketNFT?.name || 'the selected NFT'}
-               </Typography>
-               <div id="swap-modal-description" className="mt-2">
-                   {isLoadingUserNFTs ? (
-                        <div className="flex justify-center p-3">
-                           <CircularProgress className="text-amber-500" />
-                        </div>
-                   ) : userNFTs.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {userNFTs.map((nft) => (
-                                <NftCard 
-                                    key={nft.id}
-                                    nft={nft}
-                                    onClick={handleSelectNFTForSwap}
-                                    isSelected={selectedNftToOffer?.id === nft.id}
-                                />
-                            ))} 
-                        </div>
-                   ) : (
-                       <Typography className="text-gray-500">You have no eligible NFTs to offer for swap.</Typography>
-                   )}
-               </div>
-               <div className="mt-5 flex justify-end gap-2">
-                   <Button 
-                        variant="outlined" 
-                        onClick={handleCloseSwapModal}
-                         className="border-gray-500 text-gray-600 hover:bg-gray-100"
-                    >
-                        Cancel
-                    </Button>
-                   <Button 
-                        variant="contained" 
-                        color="primary"
-                        onClick={handleConfirmSwap}
-                        disabled={!selectedNftToOffer || isLoadingUserNFTs}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                        Confirm Swap Offer
-                    </Button>
-               </div>
-           </div>
-       </Modal>
-
+      {/* Swap Modal */}
+      {showSwapModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-2 text-gray-800">
+              Select Your NFT to Offer
+            </h2>
+            <p className="text-gray-600 mb-6">
+              You are offering to swap for: <span className="font-semibold">{targetNftForSwap?.name}</span>
+            </p>
+            {isLoadingUserNFTs ? (
+              <div className="flex justify-center p-5">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
+              </div>
+            ) : userNFTs.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                {userNFTs.map((nft) => (
+                  <div 
+                    key={nft.id}
+                    onClick={() => handleSelectNFTForSwap(nft)}
+                    className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
+                      selectedNftToOffer?.id === nft.id 
+                        ? 'border-amber-500 ring-2 ring-amber-500' 
+                        : 'border-gray-200 hover:border-amber-300'
+                    }`}
+                  >
+                    <NftCard 
+                      nft={nft} 
+                      onClick={handleSelectNFTForSwap}
+                      isSelected={selectedNftToOffer?.id === nft.id}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600 mb-6">You don't have any eligible NFTs to offer.</p>
+            )}
+            <div className="flex justify-end space-x-4">
+              <button 
+                onClick={handleCloseSwapModal}
+                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmSwap}
+                disabled={!selectedNftToOffer || isLoadingUserNFTs}
+                className={`px-6 py-2 bg-amber-500 text-white rounded-md ${
+                  !selectedNftToOffer || isLoadingUserNFTs 
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : 'hover:bg-amber-600'
+                } transition-colors`}
+              >
+                Confirm Swap Offer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
