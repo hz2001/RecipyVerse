@@ -1,11 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import HomePage from './pages/HomePage'
-import ExplorePage from './pages/ExplorePage'
 import RecipeDetailPage from './pages/RecipeDetailPage'
-import CreateRecipePage from './pages/CreateRecipePage'
 import MyRecipesPage from './pages/MyRecipesPage'
-import CreateNftPage from './pages/CreateNftPage'
 import CreateCouponPage from './pages/CreateCouponPage'
 import VerificationManagementPage from './pages/VerificationManagementPage'
 import SwapMarket from './pages/SwapMarket'
@@ -22,11 +19,8 @@ function App() {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <Routes>
                 <Route path="/" element={<HomePage />} />
-                <Route path="/explore" element={<ExplorePage />} />
                 <Route path="/recipe/:id" element={<RecipeDetailPage />} />
-                <Route path="/create" element={<CreateRecipePage />} />
                 <Route path="/profile" element={<MyRecipesPage />} />
-                <Route path="/create-nft" element={<CreateNftPage />} />
                 <Route path="/create-coupon" element={<CreateCouponPage />} />
                 <Route path="/verification_management" element={<VerificationManagementPage />} />
                 <Route path="/swap-market" element={<SwapMarket />} />

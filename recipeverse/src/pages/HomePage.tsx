@@ -75,7 +75,7 @@ const HomePage = () => {
       <section className="py-4 md:py-8 bg-white shadow-md">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-4 md:mb-6 text-center">
-            Find Your Favorite Recipes
+            Find Exclusive Coupon NFTs
           </h2>
           
           <form onSubmit={handleSearch} className="space-y-4 max-w-3xl mx-auto">
@@ -84,7 +84,7 @@ const HomePage = () => {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search recipes..."
+                placeholder="Search coupons, merchants, benefits..."
                 className="flex-grow px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
               <div className="flex gap-2">
@@ -133,7 +133,7 @@ const HomePage = () => {
                   className="h-4 w-4 text-amber-500 focus:ring-amber-500"
                 />
                 <label htmlFor="name" className="ml-2 text-gray-700">
-                  Recipe Name
+                  Coupon Name
                 </label>
               </div>
               
@@ -148,7 +148,7 @@ const HomePage = () => {
                   className="h-4 w-4 text-amber-500 focus:ring-amber-500"
                 />
                 <label htmlFor="ingredients" className="ml-2 text-gray-700">
-                  Ingredients
+                  Merchants
                 </label>
               </div>
               
@@ -163,7 +163,7 @@ const HomePage = () => {
                   className="h-4 w-4 text-amber-500 focus:ring-amber-500"
                 />
                 <label htmlFor="tags" className="ml-2 text-gray-700">
-                  Tags
+                  Benefits
                 </label>
               </div>
             </div>
@@ -180,7 +180,7 @@ const HomePage = () => {
                 Search Results
               </h2>
               <p className="text-gray-600">
-                Found {searchResults.length} {searchResults.length === 1 ? 'recipe' : 'recipes'} matching "{searchTerm}"
+                Found {searchResults.length} {searchResults.length === 1 ? 'coupon' : 'coupons'} matching "{searchTerm}"
                 {searchFilter !== 'all' && ` in ${searchFilter}`}
               </p>
             </div>
@@ -207,13 +207,13 @@ const HomePage = () => {
                     d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
                   />
                 </svg>
-                <h3 className="text-xl font-medium text-gray-600 mb-2">No recipes found</h3>
+                <h3 className="text-xl font-medium text-gray-600 mb-2">No coupons found</h3>
                 <p className="text-gray-500 mb-6">Try a different search term or filter</p>
                 <Link 
-                  to="/explore" 
+                  to="/swap-market" 
                   className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-md font-medium transition-colors"
                 >
-                  Browse All Recipes
+                  Browse Swap Market
                 </Link>
               </div>
             )}
@@ -228,7 +228,7 @@ const HomePage = () => {
           <section className="py-8 md:py-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-8 text-center">
-                🔥 Featured Recipes
+                🔥 Featured Offers
               </h2>
 
               {/* Responsive Grid for Top Viewed Recipes */}
@@ -257,18 +257,14 @@ const HomePage = () => {
               <div className="flex flex-col md:flex-row items-center">
                 <div className="w-full md:w-1/2 mb-10 md:mb-0 md:pr-10">
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-                    Preserve Culinary Heritage with Blockchain
+                    Decentralized Coupon Exchange Platform
                   </h1>
                   <p className="text-base md:text-lg mb-8">
-                    RecipeVerse is a decentralized platform where you can mint global culinary recipes as NFTs, 
-                    ensuring they're preserved forever on the blockchain.
+                    RecipeVerse connects merchants and customers through blockchain-powered NFT coupons and memberships, enabling secure, transparent swapping without intermediaries.
                   </p>
                   <div className="flex flex-wrap gap-4">
-                    <Link to="/create" className="w-full sm:w-auto text-center bg-white text-amber-600 px-6 py-3 rounded-md font-medium hover:bg-amber-100 transition-colors">
-                      Create Recipe
-                    </Link>
-                    <Link to="/explore" className="w-full sm:w-auto text-center bg-transparent border-2 border-white px-6 py-3 rounded-md font-medium hover:bg-white hover:text-amber-600 transition-all">
-                      Explore Recipes
+                    <Link to="/swap-market" className="w-full sm:w-auto text-center bg-white text-amber-600 px-6 py-3 rounded-md font-medium hover:bg-amber-100 transition-colors">
+                      Swap Market
                     </Link>
                   </div>
                 </div>
@@ -289,10 +285,7 @@ const HomePage = () => {
           <section className="py-8 md:py-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-4 sm:mb-0">✨ Latest Recipes</h2>
-                <Link to="/explore" className="text-amber-600 hover:text-amber-700 font-medium">
-                  View All →
-                </Link>
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-4 sm:mb-0">✨ Latest Coupons</h2>
               </div>
 
               {/* Update grid layout and mapping */}
@@ -328,9 +321,9 @@ const HomePage = () => {
                   <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                     1
                   </div>
-                  <h3 className="text-xl font-bold mb-3">Create</h3>
+                  <h3 className="text-xl font-bold mb-3">Merchants Create</h3>
                   <p className="text-gray-600">
-                    Upload your authentic recipe with ingredients, instructions, and photos
+                    Merchants mint coupon or membership NFTs with benefits and expiration dates
                   </p>
                 </div>
                 
@@ -338,9 +331,9 @@ const HomePage = () => {
                   <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                     2
                   </div>
-                  <h3 className="text-xl font-bold mb-3">Mint</h3>
+                  <h3 className="text-xl font-bold mb-3">Users Exchange</h3>
                   <p className="text-gray-600">
-                    Your recipe is stored on IPFS and minted as an NFT on the blockchain
+                    Users buy or swap NFTs directly with merchants or other users using blockchain technology
                   </p>
                 </div>
                 
@@ -348,9 +341,9 @@ const HomePage = () => {
                   <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                     3
                   </div>
-                  <h3 className="text-xl font-bold mb-3">Share</h3>
+                  <h3 className="text-xl font-bold mb-3">Everyone Benefits</h3>
                   <p className="text-gray-600">
-                    Your culinary heritage is now preserved forever and accessible to everyone
+                    Merchants gain exposure while users enjoy and trade exclusive perks with complete transparency
                   </p>
                 </div>
               </div>
@@ -362,16 +355,16 @@ const HomePage = () => {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-3xl mx-auto">
                 <h2 className="text-2xl md:text-3xl font-bold mb-4">
-                  Ready to Preserve Your Culinary Heritage?
+                  Join Our Decentralized Coupon Community
                 </h2>
                 <p className="text-lg md:text-xl mb-8">
-                  Join RecipeVerse today and help build a global, decentralized archive of culinary traditions
+                  Experience a truly decentralized platform where all transactions happen on the blockchain with complete transparency. We only intervene to protect your rights when benefits can't be redeemed.
                 </p>
                 <Link 
-                  to="/create" 
+                  to="/swap-market" 
                   className="inline-block bg-white text-amber-600 px-6 md:px-8 py-3 md:py-4 rounded-md font-medium text-lg hover:bg-amber-100 transition-colors"
                 >
-                  Get Started
+                  Start Swapping
                 </Link>
               </div>
             </div>

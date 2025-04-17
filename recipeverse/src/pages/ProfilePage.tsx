@@ -349,12 +349,6 @@ const ProfilePage = () => {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">My Recipes</h2>
-            <Link 
-              to="/create"
-              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-md transition-colors"
-            >
-              Create New Recipe
-            </Link>
           </div>
           
           {userRecipes.length > 0 ? (
@@ -380,13 +374,7 @@ const ProfilePage = () => {
                 />
               </svg>
               <h3 className="text-xl font-medium text-gray-600 mb-2">No recipes yet</h3>
-              <p className="text-gray-500 mb-6">Start creating your culinary masterpieces</p>
-              <Link 
-                to="/create" 
-                className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-md font-medium transition-colors"
-              >
-                Create Your First Recipe
-              </Link>
+              <p className="text-gray-500 mb-6">Recipe creation is currently unavailable</p>
             </div>
           )}
         </div>
@@ -402,22 +390,8 @@ const ProfilePage = () => {
            ) : (
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
                <p className="text-gray-500 mb-6">You haven't favorited any recipes yet.</p>
-               <Link 
-                to="/explore" 
-                className="inline-block bg-white border border-amber-500 text-amber-600 hover:bg-amber-50 px-6 py-3 rounded-md font-medium transition-colors"
-               >
-                Discover Recipes
-               </Link>
             </div>
            )}
-           <div className="text-center mt-8">
-             <Link 
-               to="/explore" 
-               className="inline-block bg-white border border-amber-500 text-amber-600 hover:bg-amber-50 px-6 py-3 rounded-md font-medium transition-colors"
-             >
-               Discover More Recipes
-             </Link>
-           </div>
         </div>
 
         <div className="mt-12 pt-8 border-t border-gray-200 flex justify-center">
