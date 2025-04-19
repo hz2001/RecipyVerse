@@ -4,6 +4,7 @@ import { Button, CircularProgress, Modal, TextField, Pagination, FormControlLabe
 import NftCard from '../components/NftCard'; 
 import { useWallet } from '../contexts/WalletContext';
 import { supabase } from '../utils/supabaseClient';
+import { Link } from 'react-router-dom';
 
 // 重命名以避免与导入的NftCard期望的Nft接口冲突
 interface SwapNft {
@@ -26,6 +27,8 @@ interface SwapNft {
   owner_address?: string | any; // 兼容字符串和JSON对象格式
   details?: any;
   total_supply?: number;
+  // 添加swapping字段
+  swapping?: any; // 可以是布尔值、对象或字符串
 }
 
 // Interface for Supabase NFT data
@@ -34,7 +37,7 @@ interface SupabaseNft {
   token_id?: string;
   created_at: string;
   owner_address: string | any; // 可以是字符串或JSON对象
-  swapping?: string | any; // 可以是布尔值或JSON对象，如 {"pending_1":"true","pending_2":"false"}
+  swapping?: any; // 可以是布尔值、对象或字符串，如 {"pending_1":[id1,id2],"pending_2":[id3]}
   expires_at: string;
   creator_address: string;
   details?: any; // JSON格式的NFT详情
@@ -76,6 +79,10 @@ function SwapMarket() {
   // Re-introduce state to hold the NFT being targeted for a swap, set from NftDetailPage navigation
   const [targetNftForSwap, setTargetNftForSwap] = useState<SwapNft | null>(null);
 
+  // 添加NFT详情模态框的状态
+  const [showNftDetailModal, setShowNftDetailModal] = useState(false);
+  const [selectedNftForDetail, setSelectedNftForDetail] = useState<SwapNft | null>(null);
+
   // --- UseEffect to handle navigation state from NftDetailPage ---
   useEffect(() => {
       const locationState = location.state as { triggerSwapForNft?: SwapNft };
@@ -85,8 +92,9 @@ function SwapMarket() {
           setTargetNftForSwap(locationState.triggerSwapForNft);
           // Clear the state from location history to prevent re-triggering on refresh/back
           navigate(location.pathname, { replace: true, state: {} }); 
-          // Call the handler that opens the modal
-          handleInitiateSwap(locationState.triggerSwapForNft);
+          // 打开swap模态框
+          setShowSwapModal(true);
+          loadUserNFTs();
       }
   }, [location.state, navigate]); // Depend on location.state
 
@@ -120,7 +128,8 @@ function SwapMarket() {
       creator_address: nft.creator_address,
       owner_address: nft.owner_address,
       details: detail,
-      total_supply: nft.total_supply
+      total_supply: nft.total_supply,
+      swapping: nft.swapping
     };
   };
 
@@ -538,8 +547,88 @@ function SwapMarket() {
   };
   
   // New function to confirm selected desired NFTs
-  const handleConfirmDesiredNFTs = () => {
-    setShowDesiredNFTsSelectionModal(false);
+  const handleConfirmDesiredNFTs = async () => {
+    if (!selectedNFTToPost || !connectedWallet) return;
+    
+    try {
+      // 查询NFT以获取当前状态
+      const { data: nftData, error: nftError } = await supabase
+        .from('nfts')
+        .select('*')
+        .eq('id', selectedNFTToPost.id)
+        .single();
+        
+      if (nftError) {
+        console.error("获取NFT数据失败:", nftError);
+        alert('获取NFT数据失败，无法发布');
+        return;
+      }
+      
+      // 确认这个NFT属于当前用户
+      let isOwner = false;
+      
+      // 检查字符串类型的owner_address
+      if (typeof nftData.owner_address === 'string') {
+        isOwner = nftData.owner_address === connectedWallet;
+      }
+      // 检查JSON对象类型的owner_address
+      else if (typeof nftData.owner_address === 'object' && nftData.owner_address !== null) {
+        isOwner = Object.values(nftData.owner_address).includes(connectedWallet);
+      }
+      
+      if (!isOwner) {
+        console.error("当前用户不是此NFT的所有者");
+        alert('您不是此NFT的所有者，无法发布');
+        return;
+      }
+      
+      // 获取所需NFT的ID列表
+      const desiredNftIds = desiredNFTs.map(nft => nft.id);
+      
+      // 创建swapping对象，使用新的数据结构
+      let updatedSwapping: any = {};
+      
+      // 如果owner_address是对象，为每个token创建一个desired数组
+      if (typeof nftData.owner_address === 'object' && nftData.owner_address !== null) {
+        Object.keys(nftData.owner_address).forEach(key => {
+          updatedSwapping[key] = desiredNftIds;
+        });
+      } else {
+        // 单一所有者，创建一个pending_1条目
+        updatedSwapping["pending_1"] = desiredNftIds;
+      }
+      
+      // 如果没有选择期望的NFT，使用空数组
+      if (desiredNftIds.length === 0) {
+        if (typeof nftData.owner_address === 'object' && nftData.owner_address !== null) {
+          Object.keys(nftData.owner_address).forEach(key => {
+            updatedSwapping[key] = [];
+          });
+        } else {
+          updatedSwapping["pending_1"] = [];
+        }
+      }
+      
+      // 更新NFT的swapping状态
+      const { error } = await supabase
+        .from('nfts')
+        .update({ swapping: updatedSwapping })
+        .eq('id', selectedNFTToPost.id);
+        
+      if (error) {
+        console.error("发布NFT到市场失败:", error);
+        alert('发布NFT到市场失败');
+        return;
+      }
+      
+      alert('NFT已成功发布到交换市场！'); 
+      setShowDesiredNFTsSelectionModal(false);
+      handleClosePostModal();
+      loadMarketNFTs(); 
+    } catch (error) {
+      console.error("发布NFT到市场时发生错误:", error);
+      alert('发布NFT失败'); 
+    }
   };
   
   // New function to filter available NFTs based on search query
@@ -550,106 +639,47 @@ function SwapMarket() {
     
     const query = desiredNFTsSearchQuery.toLowerCase().trim();
     return availableNFTsForSelection.filter(nft => {
-      const matchesName = (nft.name || '').toLowerCase().includes(query);
-      const matchesMerchant = (nft.merchantName || '').toLowerCase().includes(query);
-      const matchesType = (nft.coupon_type || '').toLowerCase().includes(query);
-      const matchesDescription = (nft.description || '').toLowerCase().includes(query);
+      // 同时检查name和coupon_name字段
+      const nameValue = nft.name || nft.coupon_name || '';
+      const matchesName = nameValue.toLowerCase().includes(query);
       
-      return matchesName || matchesMerchant || matchesType || matchesDescription;
+      // 检查merchantName以及details.merchantName
+      const merchantValue = nft.merchantName || (nft.details?.merchantName) || '';
+      const matchesMerchant = merchantValue.toLowerCase().includes(query);
+      
+      // 检查coupon_type
+      const typeValue = nft.coupon_type || '';
+      const matchesType = typeValue.toLowerCase().includes(query);
+      
+      // 检查description以及details.description
+      const descriptionValue = nft.description || (nft.details?.description) || '';
+      const matchesDescription = descriptionValue.toLowerCase().includes(query);
+      
+      // 额外检查details中可能的其他描述性字段
+      const matchesDetails = nft.details ? 
+        Object.values(nft.details).some(value => 
+          typeof value === 'string' && value.toLowerCase().includes(query)
+        ) : false;
+      
+      // 记录到控制台以便调试
+      if (query.length > 2 && (matchesName || matchesMerchant || matchesType || matchesDescription || matchesDetails)) {
+        console.log(`匹配到NFT: ${nameValue}, 搜索词: ${query}`);
+      }
+      
+      return matchesName || matchesMerchant || matchesType || matchesDescription || matchesDetails;
     });
   };
 
-  const handleConfirmPostToMarket = async () => {
-    if (!selectedNFTToPost || !connectedWallet) return;
-    console.log("确认发布NFT到市场:", selectedNFTToPost);
-    console.log("已选择的期望交换NFT:", desiredNFTs);
-    
-    try {
-        // 查询NFT以获取当前状态
-        const { data: nftData, error: nftError } = await supabase
-          .from('nfts')
-          .select('*')
-          .eq('id', selectedNFTToPost.id)
-          .single();
-          
-        if (nftError) {
-          console.error("获取NFT数据失败:", nftError);
-          alert('获取NFT数据失败，无法发布');
-          return;
-        }
-        
-        // 确认这个NFT属于当前用户
-        let isOwner = false;
-        
-        // 检查字符串类型的owner_address
-        if (typeof nftData.owner_address === 'string') {
-          isOwner = nftData.owner_address === connectedWallet;
-        }
-        // 检查JSON对象类型的owner_address
-        else if (typeof nftData.owner_address === 'object' && nftData.owner_address !== null) {
-          isOwner = Object.values(nftData.owner_address).includes(connectedWallet);
-        }
-        
-        if (!isOwner) {
-          console.error("当前用户不是此NFT的所有者");
-          alert('您不是此NFT的所有者，无法发布');
-          return;
-        }
-        
-        // 获取所需NFT的ID列表
-        const desiredNftIds = desiredNFTs.map(nft => nft.id);
-        
-        // 创建swapping对象，使用新的数据结构
-        let updatedSwapping: any = {};
-        
-        // 如果owner_address是对象，为每个token创建一个desired数组
-        if (typeof nftData.owner_address === 'object' && nftData.owner_address !== null) {
-          Object.keys(nftData.owner_address).forEach(key => {
-            updatedSwapping[key] = desiredNftIds;
-          });
-        } else {
-          // 单一所有者，创建一个pending_1条目
-          updatedSwapping["pending_1"] = desiredNftIds;
-        }
-        
-        // 如果没有选择期望的NFT，使用空数组
-        if (desiredNftIds.length === 0) {
-          if (typeof nftData.owner_address === 'object' && nftData.owner_address !== null) {
-            Object.keys(nftData.owner_address).forEach(key => {
-              updatedSwapping[key] = [];
-            });
-          } else {
-            updatedSwapping["pending_1"] = [];
-          }
-        }
-        
-        // 更新NFT的swapping状态
-        const { error } = await supabase
-          .from('nfts')
-          .update({ swapping: updatedSwapping })
-          .eq('id', selectedNFTToPost.id);
-          
-        if (error) {
-          console.error("发布NFT到市场失败:", error);
-          alert('发布NFT到市场失败');
-          return;
-        }
-        
-        alert('NFT已成功发布到交换市场！'); 
-        handleClosePostModal();
-        loadMarketNFTs(); 
-    } catch (error) {
-        console.error("发布NFT到市场时发生错误:", error);
-        alert('发布NFT失败'); 
-    }
+  // 修改这个函数，现在变成next step而不是post to market
+  const handleNextStep = () => {
+    if (!selectedNFTToPost) return;
+    handleOpenDesiredNFTsModal();
   };
 
-  // Updated: Navigates to NftDetailPage
+  // Updated: 显示NFT详情模态框，而不是导航到NftDetailPage
   const handleMarketNFTClick = (nft: SwapNft) => {
       if (nft.ownerId === connectedWallet) return; 
-      console.log(`Navigating to detail page for NFT: ${nft.id}`);
-      // Pass the NFT data along in state to potentially avoid re-fetch on detail page
-      navigate(`/nft/${nft.id}`, { state: { nftData: nft } }); 
+      handleOpenNftDetail(nft);
   };
 
   // Updated: Opens the modal to select user's NFT, now takes target NFT as argument
@@ -818,6 +848,18 @@ function SwapMarket() {
       // 确保必填字段有默认值
       total_supply: nft.total_supply || 1
     };
+  };
+
+  // 添加处理函数，用于打开NFT详情模态框
+  const handleOpenNftDetail = (nft: SwapNft) => {
+    setSelectedNftForDetail(nft);
+    setShowNftDetailModal(true);
+  };
+
+  // 添加处理函数，用于关闭NFT详情模态框
+  const handleCloseNftDetail = () => {
+    setShowNftDetailModal(false);
+    setSelectedNftForDetail(null);
   };
 
   // --- Rendering --- 
@@ -1008,57 +1050,6 @@ function SwapMarket() {
               <p className="text-gray-600 mb-6">You don't have any eligible NFTs available to post for swap.</p>
             )}
             
-            {/* Desired NFTs Section */}
-            {selectedNFTToPost && (
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">Select NFTs You Want in Return</h3>
-                  <Button 
-                    variant="outlined" 
-                    color="primary"
-                    onClick={handleOpenDesiredNFTsModal}
-                  >
-                    Browse NFTs
-                  </Button>
-                </div>
-                
-                {desiredNFTs.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {desiredNFTs.map((nft) => (
-                      <div key={nft.id} className="flex items-center border rounded-lg p-2">
-                        <div className="w-12 h-12 rounded-md overflow-hidden mr-3">
-                          <img 
-                            src={nft.imageUrl || nft.coupon_image || '/placeholder-images/nft-default.jpg'} 
-                            alt={nft.name || 'NFT'} 
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-sm">{nft.name || nft.coupon_name}</h4>
-                          <p className="text-xs text-gray-500">{nft.merchantName || 'Unknown Merchant'}</p>
-                        </div>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleDesiredNFT(nft);
-                          }}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 italic">
-                    No specific NFTs selected. Your NFT will be available for anyone to offer a swap.
-                  </p>
-                )}
-              </div>
-            )}
-            
             <div className="flex justify-end gap-4">
               <button 
                 onClick={handleClosePostModal}
@@ -1067,7 +1058,7 @@ function SwapMarket() {
                 Cancel
               </button>
               <button 
-                onClick={handleConfirmPostToMarket}
+                onClick={handleNextStep}
                 disabled={!selectedNFTToPost || isLoadingUserNFTs}
                 className={`px-6 py-2 bg-amber-500 text-white rounded-md ${
                   !selectedNFTToPost || isLoadingUserNFTs 
@@ -1075,7 +1066,7 @@ function SwapMarket() {
                     : 'hover:bg-amber-600'
                 } transition-colors`}
               >
-                Confirm & Post NFT
+                Next Step
               </button>
             </div>
           </div>
@@ -1087,7 +1078,7 @@ function SwapMarket() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto">
             <h2 className="text-2xl font-bold mb-4 text-gray-800">
-              Select NFTs You Want
+              Select NFTs You Want In Return
             </h2>
             
             <div className="mb-6">
@@ -1099,6 +1090,45 @@ function SwapMarket() {
                 value={desiredNFTsSearchQuery}
                 onChange={(e) => setDesiredNFTsSearchQuery(e.target.value)}
               />
+            </div>
+
+            {/* 显示已选择的NFT区域 */}
+            {desiredNFTs.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3 text-gray-700">Selected NFTs ({desiredNFTs.length})</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  {desiredNFTs.map(nft => (
+                    <div key={nft.id} className="flex items-center bg-white p-2 rounded-md shadow-sm">
+                      <div className="w-8 h-8 rounded-md overflow-hidden mr-2">
+                        <img 
+                          src={nft.imageUrl || nft.coupon_image || '/placeholder-images/nft-default.jpg'} 
+                          alt={nft.name || 'NFT'} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 truncate">
+                        <p className="text-xs font-medium truncate">{nft.name || nft.coupon_name}</p>
+                      </div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleDesiredNFT(nft);
+                        }}
+                        className="text-red-500 hover:text-red-700 ml-1"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="mb-3 border-b pb-2 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-700">Available NFTs</h3>
+              <span className="text-sm text-gray-500">Click to select/deselect</span>
             </div>
             
             {isLoadingAvailableNFTs ? (
@@ -1119,11 +1149,32 @@ function SwapMarket() {
                           : 'border-gray-200 hover:border-amber-300'
                       }`}
                     >
-                      <NftCard 
-                        nft={adaptToNftCardFormat(nft)} 
-                        onClick={() => handleToggleDesiredNFT(nft)}
-                        isSelected={isSelected}
-                      />
+                      <div className="relative">
+                        <NftCard 
+                          nft={adaptToNftCardFormat(nft)} 
+                          onClick={() => {}} // 防止NftCard内部onClick与外层容器onClick冲突
+                          isSelected={isSelected}
+                        />
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 bg-amber-500 text-white rounded-full w-6 h-6 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
+                        {/* 添加查看详情按钮 */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-800 to-transparent p-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // 阻止事件冒泡，不触发选择
+                              handleOpenNftDetail(nft);
+                            }}
+                            className="w-full bg-white text-amber-600 text-sm font-medium py-1 px-2 rounded shadow hover:bg-amber-50 transition-colors"
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
@@ -1147,7 +1198,7 @@ function SwapMarket() {
                 onClick={handleConfirmDesiredNFTs}
                 className="px-6 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
               >
-                Confirm Selection
+                Post NFT
               </button>
             </div>
           </div>
@@ -1209,6 +1260,131 @@ function SwapMarket() {
               >
                 Confirm Swap Offer
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NFT Detail Modal */}
+      {showNftDetailModal && selectedNftForDetail && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-0 max-w-xl w-11/12 max-h-[90vh] overflow-y-auto">
+            {/* 上方图片区域 */}
+            <div className="w-full h-64 bg-gray-200 relative">
+              <img
+                src={selectedNftForDetail.imageUrl || selectedNftForDetail.coupon_image || '/placeholder-images/nft-default.jpg'}
+                alt={selectedNftForDetail.name || selectedNftForDetail.coupon_name || 'NFT'}
+                className="w-full h-full object-cover"
+              />
+              <button 
+                onClick={handleCloseNftDetail}
+                className="absolute top-3 right-3 bg-white bg-opacity-70 text-gray-700 rounded-full p-1 hover:bg-opacity-100"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* 下方详情区域 */}
+            <div className="p-6">
+              <h2 className="text-2xl font-bold mb-2 text-gray-800">
+                {selectedNftForDetail.name || selectedNftForDetail.coupon_name || 'NFT'}
+              </h2>
+              
+              <div className="mb-4 flex items-center">
+                <span className="inline-block bg-amber-100 text-amber-700 px-2 py-1 text-xs font-semibold rounded">
+                  {selectedNftForDetail.coupon_type || 'Coupon NFT'}
+                </span>
+                <span className="ml-2 text-sm text-gray-500">
+                  Created by {selectedNftForDetail.creator_address?.substring(0, 6)}...{selectedNftForDetail.creator_address?.substring(38) || 'Unknown'}
+                </span>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Merchant</h3>
+                    <p className="text-gray-800">{selectedNftForDetail.merchantName || selectedNftForDetail.details?.merchantName || 'Unknown Merchant'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Expiration Date</h3>
+                    <p className="text-gray-800">{new Date(selectedNftForDetail.expirationDate || selectedNftForDetail.expires_at || '').toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Token ID</h3>
+                    <p className="text-gray-800">{selectedNftForDetail.tokenId || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Total Supply</h3>
+                    <p className="text-gray-800">{selectedNftForDetail.total_supply || 1}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 描述部分 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Description</h3>
+                <p className="text-gray-700">
+                  {selectedNftForDetail.description || selectedNftForDetail.details?.description || 'No description available.'}
+                </p>
+              </div>
+              
+              {/* 优惠内容 */}
+              {(selectedNftForDetail.benefits && selectedNftForDetail.benefits.length > 0 || selectedNftForDetail.details?.benefits) && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-2">Benefits</h3>
+                  {Array.isArray(selectedNftForDetail.benefits) ? (
+                    <ul className="list-disc pl-5">
+                      {selectedNftForDetail.benefits.map((benefit, index) => (
+                        <li key={index} className="text-gray-700 mb-1">{benefit}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-700">{selectedNftForDetail.details?.benefits}</p>
+                  )}
+                </div>
+              )}
+              
+              {/* 链上信息 */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h3 className="text-lg font-semibold mb-2">Blockchain Information</h3>
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Contract Address:</span>
+                    <span className="text-gray-800 font-mono text-sm truncate ml-2">
+                      {selectedNftForDetail.contractAddress || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Owner:</span>
+                    <span className="text-gray-800 font-mono text-sm truncate ml-2">
+                      {typeof selectedNftForDetail.owner_address === 'string' 
+                        ? `${selectedNftForDetail.owner_address.substring(0, 6)}...${selectedNftForDetail.owner_address.substring(38)}`
+                        : 'Multiple Owners'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 按钮区域 */}
+              <div className="flex justify-end mt-6 space-x-3">
+                <Link 
+                  to={`/nft/${selectedNftForDetail.id}`}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  View Full Details
+                </Link>
+                <button 
+                  onClick={() => {
+                    handleCloseNftDetail();
+                    handleInitiateSwap(selectedNftForDetail);
+                  }}
+                  className="px-6 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
+                >
+                  Swap This NFT
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1281,7 +1457,7 @@ function SwapMarket() {
             <div key={nft.id} className="relative">
               <NftCard 
                 nft={adaptToNftCardFormat(nft)}
-                onClick={() => {}}
+                onClick={() => handleOpenNftDetail(nft)}
               />
               
               {/* Desired NFTs indicator */}

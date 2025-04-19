@@ -62,6 +62,10 @@ const MyRecipesPage: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState<boolean>(false); // 注册过程中的加载状态
   const [autoConnecting, setAutoConnecting] = useState<boolean>(false); // 自动连接钱包状态
 
+  // NFT详情模态框的状态
+  const [showNftDetailModal, setShowNftDetailModal] = useState<boolean>(false);
+  const [selectedNftForDetail, setSelectedNftForDetail] = useState<any | null>(null);
+
   // --- Determine effective state based on testMode --- 
   const connectedWallet = testMode ? simulatedWallet : globalConnectedWallet;
   let userData = testMode ? simulatedUserData : globalUserData;
@@ -759,7 +763,12 @@ const MyRecipesPage: React.FC = () => {
               
               {/* 实际模式下显示数据库数据 */}
               {!testMode && nfts.map(nft => (
-                <NftCard key={nft.id} nft={nft} />
+                <div key={nft.id} className="relative">
+                  <NftCard 
+                    nft={nft} 
+                    onClick={() => handleOpenNftDetail(nft)}
+                  />
+                </div>
               ))}
             </div>
           ) : (
@@ -804,7 +813,13 @@ const MyRecipesPage: React.FC = () => {
               
               {/* 实际模式下显示数据库数据 */}
               {!testMode && createdNfts.map(nft => (
-                <NftCard key={nft.id} nft={nft} />
+                <div key={nft.id} className="relative">
+                  <NftCard 
+                    key={nft.id} 
+                    nft={nft} 
+                    onClick={() => handleOpenNftDetail(nft)}
+                  />
+                </div>
               ))}
             </div>
           ) : (
@@ -853,6 +868,18 @@ const MyRecipesPage: React.FC = () => {
     );
   };
 
+  // 处理函数，用于打开NFT详情模态框
+  const handleOpenNftDetail = (nft: any) => {
+    setSelectedNftForDetail(nft);
+    setShowNftDetailModal(true);
+  };
+
+  // 处理函数，用于关闭NFT详情模态框
+  const handleCloseNftDetail = () => {
+    setShowNftDetailModal(false);
+    setSelectedNftForDetail(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-6">
       <div className="max-w-7xl mx-auto">
@@ -890,6 +917,140 @@ const MyRecipesPage: React.FC = () => {
           onSelectMembership={handleSelectMembership}
         />
        )}
+
+      {/* 添加NFT详情模态框 */}
+      {showNftDetailModal && selectedNftForDetail && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-0 max-w-xl w-11/12 max-h-[90vh] overflow-y-auto">
+            {/* 上方图片区域 */}
+            <div className="w-full h-64 bg-gray-200 relative">
+              <img
+                src={selectedNftForDetail.coupon_image 
+                  ? `/images/${selectedNftForDetail.coupon_image}` 
+                  : selectedNftForDetail.imageUrl || '/placeholder-images/nft-default.jpg'}
+                alt={selectedNftForDetail.coupon_name || selectedNftForDetail.name || 'NFT'}
+                className="w-full h-full object-cover"
+              />
+              <button 
+                onClick={handleCloseNftDetail}
+                className="absolute top-3 right-3 bg-white bg-opacity-70 text-gray-700 rounded-full p-1 hover:bg-opacity-100"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* 下方详情区域 */}
+            <div className="p-6">
+              <h2 className="text-2xl font-bold mb-2 text-gray-800">
+                {selectedNftForDetail.coupon_name || selectedNftForDetail.name || 'NFT'}
+              </h2>
+              
+              <div className="mb-4 flex items-center">
+                <span className="inline-block bg-amber-100 text-amber-700 px-2 py-1 text-xs font-semibold rounded">
+                  {selectedNftForDetail.coupon_type || 'NFT'}
+                </span>
+                {selectedNftForDetail.creator_address && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    Created by {selectedNftForDetail.creator_address?.substring(0, 6)}...{selectedNftForDetail.creator_address?.substring(38) || ''}
+                  </span>
+                )}
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Merchant</h3>
+                    <p className="text-gray-800">
+                      {selectedNftForDetail.details?.merchantName || 
+                       selectedNftForDetail.merchantName || 
+                       'Unknown Merchant'}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Expiration Date</h3>
+                    <p className="text-gray-800">
+                      {selectedNftForDetail.expires_at 
+                        ? new Date(selectedNftForDetail.expires_at).toLocaleDateString() 
+                        : selectedNftForDetail.expirationDate || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Token ID</h3>
+                    <p className="text-gray-800">{selectedNftForDetail.token_id || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Total Supply</h3>
+                    <p className="text-gray-800">{selectedNftForDetail.total_supply || 1}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 描述部分 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Description</h3>
+                <p className="text-gray-700">
+                  {selectedNftForDetail.details?.description || 
+                   selectedNftForDetail.description || 
+                   'No description available.'}
+                </p>
+              </div>
+              
+              {/* 优惠内容 */}
+              {(selectedNftForDetail.details?.benefits || 
+                (selectedNftForDetail.benefits && 
+                 selectedNftForDetail.benefits.length > 0)) && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-2">Benefits</h3>
+                  {Array.isArray(selectedNftForDetail.benefits) ? (
+                    <ul className="list-disc pl-5">
+                      {selectedNftForDetail.benefits.map((benefit: string, index: number) => (
+                        <li key={index} className="text-gray-700 mb-1">{benefit}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-700">{selectedNftForDetail.details?.benefits}</p>
+                  )}
+                </div>
+              )}
+              
+              {/* 链上信息 */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h3 className="text-lg font-semibold mb-2">Blockchain Information</h3>
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Owner Address:</span>
+                    <span className="text-gray-800 font-mono text-sm truncate ml-2">
+                      {typeof selectedNftForDetail.owner_address === 'string' 
+                        ? `${selectedNftForDetail.owner_address.substring(0, 6)}...${selectedNftForDetail.owner_address.substring(38)}`
+                        : 'Multiple Owners'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Creator Address:</span>
+                    <span className="text-gray-800 font-mono text-sm truncate ml-2">
+                      {selectedNftForDetail.creator_address 
+                        ? `${selectedNftForDetail.creator_address.substring(0, 6)}...${selectedNftForDetail.creator_address.substring(38)}`
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 按钮区域 */}
+              <div className="flex justify-end mt-6">
+                <Link 
+                  to={`/nft/${selectedNftForDetail.id}`}
+                  className="px-6 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
+                >
+                  View Full Details
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
