@@ -10,6 +10,7 @@ import NftDetailPage from './pages/NftDetailPage'
 import { WalletProvider } from './contexts/WalletContext'
 import TestSupabaseConnection from './pages/TestSupabaseConnection'
 import TestNFTQueryPage from './pages/TestNFTQueryPage'
+import TestMerchantRegistration from './pages/TestMerchantRegistration'
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
                 <Route path="/nft/:nftId" element={<NftDetailPage />} />
                 <Route path="/test" element={<TestSupabaseConnection />} />
                 <Route path="/test-nfts" element={<TestNFTQueryPage />} />
+                <Route path="/test-merchant" element={<TestMerchantRegistration />} />
                 <Route path="*" element={<div className="p-12 text-center">Page Not Found</div>} />
               </Routes>
             </div>

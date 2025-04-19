@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom'; // Import hooks
 import { Button, CircularProgress, Modal } from '@mui/material';
 import NftCard from '../components/NftCard'; 
+import { useWallet } from '../contexts/WalletContext';
+import { supabase } from '../utils/supabaseClient';
 
 // Interface potentially moved to a shared types file
 interface Nft {
@@ -19,9 +21,21 @@ interface Nft {
   // ... etc
 }
 
+// Interface for Supabase NFT data
+interface SupabaseNft {
+  token_id: string;
+  created_at: string;
+  owner_address: string;
+  swapping: boolean;
+  expires_at: string;
+  creator_address: string;
+  detail: any; // JSON format with NFT details
+}
+
 function SwapMarket() {
   const navigate = useNavigate(); // Initialize navigate
   const location = useLocation(); // Initialize location
+  const { connectedWallet } = useWallet(); // Get connected wallet
 
   const [userNFTs, setUserNFTs] = useState<Nft[]>([]);
   const [marketNFTs, setMarketNFTs] = useState<Nft[]>([]);
@@ -35,18 +49,6 @@ function SwapMarket() {
 
   // Re-introduce state to hold the NFT being targeted for a swap, set from NftDetailPage navigation
   const [targetNftForSwap, setTargetNftForSwap] = useState<Nft | null>(null);
-
-  const userId = 'currentUser123'; // Placeholder
-
-  // --- MOCK DATA (Include description and other fields) ---
-  const mockMarketNfts: Nft[] = [
-      { id: 'market1', name: 'Coffee Coupon', merchantName: 'Cafe Central', expirationDate: '2024-12-31', benefits: ['Free Espresso'], ownerId: 'user456', imageUrl: '/placeholder-images/coffee.jpg', description: 'Enjoy a free espresso on us! Valid any day.', contractAddress: '0x123', tokenId: '1' },
-      { id: 'market2', name: 'Movie Ticket', merchantName: 'Cinema Plex', expirationDate: '2024-11-30', benefits: ['50% off Popcorn'], ownerId: 'user789', imageUrl: '/placeholder-images/movie.jpg', description: 'One free admission to any regular screening. Excludes 3D/IMAX. Also get 50% off a large popcorn.', contractAddress: '0x456', tokenId: '2' },
-      { id: 'posted1', name: 'Bookstore Voucher Posted', merchantName: 'Readers Corner', expirationDate: '2024-10-31', benefits: ['$5 off purchase'], ownerId: userId, imageUrl: '/placeholder-images/books.jpg', description: 'Get $5 off any purchase over $20.', contractAddress: '0x789', tokenId: '3' }, 
-  ];
-  const mockUserNfts: Nft[] = [
-      { id: 'user1', name: 'Restaurant Discount', merchantName: 'Pasta Place', expirationDate: '2025-01-15', benefits: ['10% off total bill'], ownerId: userId, imageUrl: '/placeholder-images/restaurant.jpg', description: 'A tasty 10% discount on your entire bill. Max discount $20.', contractAddress: '0xabc', tokenId: '4' },
-  ];
 
   // --- UseEffect to handle navigation state from NftDetailPage ---
   useEffect(() => {
@@ -62,17 +64,55 @@ function SwapMarket() {
       }
   }, [location.state, navigate]); // Depend on location.state
 
-  // --- Data Fetching & Handlers (Modified/Added) ---
+  // Load market NFTs on component mount and when wallet changes
   useEffect(() => {
     loadMarketNFTs();
-  }, []);
+  }, [connectedWallet]);
+
+  // Convert Supabase NFT to app NFT format
+  const convertSupabaseNftToAppNft = (nft: SupabaseNft): Nft => {
+    // Parse the detail JSON if it's a string
+    const detail = typeof nft.detail === 'string' 
+      ? JSON.parse(nft.detail) 
+      : nft.detail;
+      
+    return {
+      id: nft.token_id,
+      name: detail?.name || `NFT #${nft.token_id}`,
+      description: detail?.description || '',
+      imageUrl: detail?.imageUrl || '/placeholder-images/nft-default.jpg',
+      merchantName: detail?.merchantName || '',
+      expirationDate: nft.expires_at || '',
+      benefits: detail?.benefits || [],
+      ownerId: nft.owner_address,
+      contractAddress: detail?.contractAddress || '',
+      tokenId: nft.token_id
+    };
+  };
 
   const loadMarketNFTs = async () => {
     setIsLoadingMarket(true);
     try {
-      setMarketNFTs(mockMarketNfts.filter(nft => nft.ownerId !== userId));
+      // Query NFTs where swapping = true
+      const { data, error } = await supabase
+        .from('nfts')
+        .select('*')
+        .eq('swapping', true);
+        
+      if (error) {
+        console.error("Error fetching market NFTs:", error);
+        setMarketNFTs([]);
+      } else if (data) {
+        // Filter out NFTs owned by the current user for the marketplace section
+        const marketNfts = data
+          .filter(nft => nft.owner_address !== connectedWallet)
+          .map(convertSupabaseNftToAppNft);
+          
+        setMarketNFTs(marketNfts);
+        console.log("Loaded market NFTs:", marketNfts);
+      }
     } catch (error) {
-      console.error("Error fetching market NFTs:", error);
+      console.error("Unexpected error fetching market NFTs:", error);
       setMarketNFTs([]);
     } finally {
       setIsLoadingMarket(false);
@@ -80,16 +120,60 @@ function SwapMarket() {
   };
 
   const loadUserNFTs = async () => {
+    if (!connectedWallet) {
+      setUserNFTs([]);
+      return;
+    }
+    
     setIsLoadingUserNFTs(true);
     try {
-      // Filter out NFTs currently in a swap process if the API doesn't
-      setUserNFTs(mockUserNfts);
+      // Get all NFTs owned by the user (including those not currently swapping)
+      const { data, error } = await supabase
+        .from('nfts')
+        .select('*')
+        .eq('owner_address', connectedWallet);
+        
+      if (error) {
+        console.error("Error fetching user NFTs:", error);
+        setUserNFTs([]);
+      } else if (data) {
+        // Filter out NFTs that are already in swapping state
+        const userNfts = data
+          .filter(nft => !nft.swapping)
+          .map(convertSupabaseNftToAppNft);
+          
+        setUserNFTs(userNfts);
+        console.log("Loaded user NFTs:", userNfts);
+      }
     } catch (error) {
       console.error("Error fetching user NFTs:", error);
       setUserNFTs([]);
     } finally {
       setIsLoadingUserNFTs(false);
     }
+  };
+
+  const loadUserPostedNFTs = async () => {
+    if (!connectedWallet) return [];
+    
+    try {
+      // Get NFTs that are owned by the user AND marked for swapping
+      const { data, error } = await supabase
+        .from('nfts')
+        .select('*')
+        .eq('owner_address', connectedWallet)
+        .eq('swapping', true);
+        
+      if (error) {
+        console.error("Error fetching user posted NFTs:", error);
+        return [];
+      } else if (data) {
+        return data.map(convertSupabaseNftToAppNft);
+      }
+    } catch (error) {
+      console.error("Error fetching user posted NFTs:", error);
+    }
+    return [];
   };
 
   const handleOpenPostModal = () => {
@@ -108,10 +192,22 @@ function SwapMarket() {
   };
 
   const handleConfirmPostToMarket = async () => {
-    if (!selectedNFTToPost) return;
+    if (!selectedNFTToPost || !connectedWallet) return;
     console.log("Confirming post to market:", selectedNFTToPost);
     try {
-        // await markNFTForSwap(selectedNFTToPost.id, userId);
+        // Update the NFT in the database to mark it as swapping
+        const { error } = await supabase
+          .from('nfts')
+          .update({ swapping: true })
+          .eq('token_id', selectedNFTToPost.id)
+          .eq('owner_address', connectedWallet);
+          
+        if (error) {
+          console.error("Error posting NFT to market:", error);
+          alert('Failed to post NFT for swap.');
+          return;
+        }
+        
         alert('NFT posted to swap market!'); 
         handleClosePostModal();
         loadMarketNFTs(); 
@@ -123,7 +219,7 @@ function SwapMarket() {
 
   // Updated: Navigates to NftDetailPage
   const handleMarketNFTClick = (nft: Nft) => {
-      if (nft.ownerId === userId) return; 
+      if (nft.ownerId === connectedWallet) return; 
       console.log(`Navigating to detail page for NFT: ${nft.id}`);
       // Pass the NFT data along in state to potentially avoid re-fetch on detail page
       navigate(`/nft/${nft.id}`, { state: { nftData: nft } }); 
@@ -151,11 +247,25 @@ function SwapMarket() {
 
   // Uses selectedNftToOffer (user's) and targetNftForSwap (market's)
   const handleConfirmSwap = async () => {
-      if (!targetNftForSwap || !selectedNftToOffer) return;
+      if (!targetNftForSwap || !selectedNftToOffer || !connectedWallet) return;
       console.log(`Confirming swap: Offering ${selectedNftToOffer.name} (${selectedNftToOffer.id}) for ${targetNftForSwap.name} (${targetNftForSwap.id})`);
       try {
-          // await initiateSwap(userId, selectedNftToOffer.id, targetNftForSwap.id, targetNftForSwap.ownerId);
-           alert('Swap initiated successfully! Ownership will be updated.'); 
+          // Mark user's NFT as swapping
+          const { error: markError } = await supabase
+            .from('nfts')
+            .update({ swapping: true })
+            .eq('token_id', selectedNftToOffer.id)
+            .eq('owner_address', connectedWallet);
+            
+          if (markError) {
+            throw new Error(`Error marking NFT for swap: ${markError.message}`);
+          }
+            
+          // TODO: Implement actual swap logic here
+          // This would typically involve a smart contract call or backend process
+          // For now we just simulate the swap offer being recorded
+          
+          alert('Swap initiated successfully! Ownership will be updated when the owner accepts.');
           setShowSwapModal(false);
           setSelectedNftToOffer(null);
           setTargetNftForSwap(null); // Clear target state
@@ -185,9 +295,13 @@ function SwapMarket() {
           <button 
             onClick={handleOpenPostModal} 
             className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-md font-medium transition-colors shadow-md"
+            disabled={!connectedWallet}
           >
             Post an NFT for Swap
           </button>
+          {!connectedWallet && (
+            <p className="text-gray-500 mt-2">Connect your wallet to post NFTs for swap</p>
+          )}
         </div>
 
         {/* Market NFTs Section */}
@@ -234,24 +348,16 @@ function SwapMarket() {
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-xl font-semibold mb-6 text-gray-800">Your Posted NFTs</h3>
           
-          {isLoadingMarket ? (
+          {!connectedWallet ? (
+            <div className="text-center py-10">
+              <p className="text-gray-500">Connect your wallet to view your posted NFTs.</p>
+            </div>
+          ) : isLoadingMarket ? (
             <div className="flex justify-center p-5">
               <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
             </div>
-          ) : mockMarketNfts.filter(nft => nft.ownerId === userId).length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {mockMarketNfts.filter(nft => nft.ownerId === userId).map((nft) => (
-                <NftCard 
-                  key={nft.id}
-                  nft={nft}
-                  onClick={() => {}}
-                />
-              ))} 
-            </div>
           ) : (
-            <div className="text-center py-10">
-              <p className="text-gray-500">You haven't posted any NFTs for swap yet.</p>
-            </div>
+            <UserPostedNFTs />
           )}
         </div>
       </div>
@@ -290,7 +396,7 @@ function SwapMarket() {
             ) : (
               <p className="text-gray-600 mb-6">You don't have any eligible NFTs available to post for swap.</p>
             )}
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end gap-4">
               <button 
                 onClick={handleClosePostModal}
                 className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
@@ -350,7 +456,7 @@ function SwapMarket() {
             ) : (
               <p className="text-gray-600 mb-6">You don't have any eligible NFTs to offer.</p>
             )}
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end gap-4">
               <button 
                 onClick={handleCloseSwapModal}
                 className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
@@ -374,6 +480,51 @@ function SwapMarket() {
       )}
     </div>
   );
+  
+  // User Posted NFTs Component (internal)
+  function UserPostedNFTs() {
+    const [postedNFTs, setPostedNFTs] = useState<Nft[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    useEffect(() => {
+      async function fetchUserPostedNFTs() {
+        setIsLoading(true);
+        const nfts = await loadUserPostedNFTs();
+        setPostedNFTs(nfts || []);
+        setIsLoading(false);
+      }
+      
+      fetchUserPostedNFTs();
+    }, [connectedWallet]);
+    
+    if (isLoading) {
+      return (
+        <div className="flex justify-center p-5">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
+        </div>
+      );
+    }
+    
+    if (postedNFTs.length === 0) {
+      return (
+        <div className="text-center py-10">
+          <p className="text-gray-500">You haven't posted any NFTs for swap yet.</p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {postedNFTs.map((nft) => (
+          <NftCard 
+            key={nft.id}
+            nft={nft}
+            onClick={() => {}}
+          />
+        ))}
+      </div>
+    );
+  }
 }
 
 export default SwapMarket; 
