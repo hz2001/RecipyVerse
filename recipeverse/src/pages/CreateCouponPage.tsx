@@ -176,8 +176,7 @@ const CreateCouponPage: React.FC = () => {
             // 为每个新钱包地址创建用户记录
             const newUsers = newWallets.map(wallet => ({
               wallet_address: wallet,
-              created_at: new Date().toISOString(),
-              is_merchant: false // 默认为普通用户
+              created_at: new Date().toISOString()
             }));
             
             // 将新用户添加到users表

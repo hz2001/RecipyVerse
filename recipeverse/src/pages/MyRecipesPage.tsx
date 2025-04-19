@@ -127,12 +127,69 @@ const MyRecipesPage: React.FC = () => {
 
   // --- Supabase related functions --- 
   const fetchNfts = async (address: string) => {
-    const { data, error } = await supabase
+    if (!address) {
+      console.log('未提供钱包地址，跳过NFT查询');
+      return;
+    }
+    
+    try {
+      console.log('正在获取用户拥有的NFT，钱包地址:', address);
+      
+      // 方法1: 直接查询string类型的owner_address (旧数据格式)
+      const { data: directOwnedNfts, error: directError } = await supabase
         .from('nfts')
         .select('*')
         .eq('owner_address', address);
-    if (!error && data) {
-        setNfts(data);
+        
+      if (directError) {
+        console.error('直接查询owner_address失败:', directError);
+      } else {
+        console.log('直接匹配地址的NFT数量:', directOwnedNfts?.length || 0);
+      }
+      
+      // 方法2: 尝试查询JSONB类型的owner_address中的值 (新数据格式)
+      // 先检查数据库中是否存在JSON对象结构的NFT
+      let jsonOwned = [];
+      try {
+        // 使用更简单的查询方式
+        const { data, error } = await supabase
+          .from('nfts')
+          .select('*');
+          
+        if (error) {
+          console.error('获取所有NFT失败:', error);
+        } else if (data && data.length > 0) {
+          // 在客户端筛选JSON对象格式的NFT
+          jsonOwned = data.filter(nft => {
+            // 判断owner_address是否为JSON对象
+            if (typeof nft.owner_address === 'object' && nft.owner_address !== null) {
+              // 检查是否有任何属性的值等于当前钱包地址
+              return Object.values(nft.owner_address).includes(address);
+            }
+            return false;
+          });
+          
+          console.log('客户端过滤后匹配JSON格式的NFT数量:', jsonOwned.length);
+        }
+      } catch (jsonErr) {
+        console.error('解析JSON格式NFT失败:', jsonErr);
+      }
+      
+      // 合并结果并去重
+      const allNfts = [
+        ...(directOwnedNfts || []),
+        ...jsonOwned
+      ];
+      
+      // 去重操作
+      const uniqueNfts = Array.from(new Set(allNfts.map(nft => nft.id)))
+        .map(id => allNfts.find(nft => nft.id === id))
+        .filter(Boolean); // 过滤掉undefined
+      
+      console.log('合并后的用户NFT总数:', uniqueNfts.length);
+      setNfts(uniqueNfts);
+    } catch (err) {
+      console.error('获取NFT失败:', err);
     }
   };
 
@@ -159,30 +216,42 @@ const MyRecipesPage: React.FC = () => {
     setNfts([]);
   };
 
-  useEffect(() => {
-    const init = async () => {
-        const user = await UserService.getCurrentUser();
-        if (user) {
-            setWalletAddress(user.wallet_address);
-            setIsMerchant(user.is_merchant);
-            setUserId(user.id);
-            setLoggedIn(true);
-            fetchNfts(user.wallet_address);
-            fetchCreatedNfts(user.wallet_address);
-        }
-    };
-    init();
-  }, []);
-
   // --- Handler for REAL MODE Wallet Connection ---
   useEffect(() => {
     // 当用户钱包连接成功后，获取NFT数据
     if (connectedWallet && !testMode) {
-      console.log('Wallet connected, fetching NFTs for:', connectedWallet);
+      console.log('钱包已连接，开始获取NFT数据:', connectedWallet);
       fetchNfts(connectedWallet);
       fetchCreatedNfts(connectedWallet);
     }
   }, [connectedWallet, testMode]);
+  
+  // 从UserService初始化
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const user = await UserService.getCurrentUser();
+        if (user && user.wallet_address) {
+          console.log('从UserService获取到用户:', user);
+          setWalletAddress(user.wallet_address);
+          setIsMerchant(user.is_merchant);
+          setUserId(user.id);
+          setLoggedIn(true);
+          
+          console.log('通过UserService初始化NFT查询，钱包地址:', user.wallet_address);
+          // 首次加载时进行NFT查询
+          fetchNfts(user.wallet_address);
+          fetchCreatedNfts(user.wallet_address);
+        } else {
+          console.log('UserService未返回有效用户或钱包地址');
+        }
+      } catch (err) {
+        console.error('初始化用户数据失败:', err);
+      }
+    };
+    
+    init();
+  }, []);
 
   // --- Handlers for TEST MODE Simulation --- 
   const handleSimulateConnectWallet = () => {
