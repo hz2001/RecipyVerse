@@ -2,63 +2,99 @@
 pragma solidity ^0.8.0;
 
 import "./CouponNFT.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-// Factory contract to deploy and manage individual NFT collections (RestaurantNFTs)
+/// @title Factory for deploying various NFT contract types with off-chain approval
 contract NFTFactory {
-    address public owner;                        // Owner of the factory (platform owner)
-    address[] public allCollections;             // All deployed collection addresses
+    using ECDSA for bytes32;  // only for .recover; we’ll do the prefix manually
 
-    // Mapping from user address (restaurant) to their deployed collections
+    address public owner;
+    address[] public allCollections;
     mapping(address => address[]) public ownerToCollections;
 
-    // Emitted when a new collection is deployed
     event CollectionDeployed(address indexed owner, address collection);
 
     constructor() {
-        owner = msg.sender;                      // Initialize factory owner
+        owner = msg.sender;
     }
 
-    // Deploys a new NFT collection with a custom name, symbol, and supply limit
+    /**
+     * @notice Deploys a new NFT collection, but only if `owner` has signed off-chain
+     * @param name           ERC-721 name
+     * @param symbol         ERC-721 symbol
+     * @param maxSupply      cap on mintable tokens
+     * @param expiration_date timestamp baked into the child contract
+     * @param contractType   1 = CouponNFT, 2 = (future) MemberNFT, etc
+     * @param signature      signature by `owner` over the packed payload
+     */
     function deployCollection(
         string memory name,
         string memory symbol,
         uint256 maxSupply,
         uint256 expiration_date,
-        uint256 contractType
+        uint256 contractType,
+        bytes calldata signature
     ) external returns (address) {
+        // 1) Recreate the exact 32-byte payload that was signed off-chain:
+        bytes32 payloadHash = keccak256(
+            abi.encodePacked(
+                msg.sender,
+                name,
+                symbol,
+                maxSupply,
+                expiration_date,
+                contractType,
+                block.chainid
+            )
+        );
 
-        if (contractType ==1){
-            // Create new RestaurantNFT and set caller as the owner
-            CouponNFT collection = new CouponNFT(name, symbol, maxSupply, expiration_date, msg.sender);
-            address collectionAddress = address(collection);
+        // 2) Manually apply the EIP-191 prefix:
+        bytes32 ethSignedHash = keccak256(
+            abi.encodePacked(
+                "\x19Ethereum Signed Message:\n32",
+                payloadHash
+            )
+        );
 
-            // Track the deployed collection
-            allCollections.push(collectionAddress);
-            ownerToCollections[msg.sender].push(collectionAddress);
+        // 3) Recover who signed it and require it to be `owner`
+        address signer = ethSignedHash.recover(signature);
+        require(signer == owner, "NFTFactory: unauthorized");
 
-            emit CollectionDeployed(msg.sender, collectionAddress);
-
-            // future implementations
-            return collectionAddress;
+        // 4) Deploy the right contract
+        address collectionAddress;
+        if (contractType == 1) {
+            CouponNFT col = new CouponNFT(
+                name,
+                symbol,
+                maxSupply,
+                expiration_date,
+                msg.sender
+            );
+            collectionAddress = address(col);
+        } else if (contractType == 2) {
+            revert("NFTFactory: unsupported contract type");
+        } else {
+            revert("NFTFactory: invalid contract type");
         }
-        else if (contractType==2){
-            // create new MemberNFT contract
-            
-        }
-        
+
+        // 5) Track & emit
+        allCollections.push(collectionAddress);
+        ownerToCollections[msg.sender].push(collectionAddress);
+        emit CollectionDeployed(msg.sender, collectionAddress);
+
+        return collectionAddress;
     }
 
-    // Get all NFT collections deployed by a specific owner (restaurant)
     function getCollectionsByOwner(address ownerAddr) external view returns (address[] memory) {
         return ownerToCollections[ownerAddr];
     }
 
-    // Check if an address is one of the deployed NFT collections
     function isFactoryChild(address collectionAddr) external view returns (bool) {
-        for (uint i = 0; i < allCollections.length; i++) {
-            if (allCollections[i] == collectionAddr) return true;
+        for (uint256 i = 0; i < allCollections.length; i++) {
+            if (allCollections[i] == collectionAddr) {
+                return true;
+            }
         }
         return false;
     }
 }
-
