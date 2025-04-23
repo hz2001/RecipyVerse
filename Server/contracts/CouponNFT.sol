@@ -40,7 +40,7 @@ contract CouponNFT is ERC721, Ownable {
     function mint(
         address to,
         string calldata benefitHash
-    //uint256 expiryTimestamp
+        //uint256 expiryTimestamp
     ) external onlyOwner {
         require(totalSupply<maxMint, "Max supply reached");
         require(collectionExpiry > block.timestamp, "Expiration must be in the future");
@@ -62,6 +62,7 @@ contract CouponNFT is ERC721, Ownable {
 
 
     // return to the restaurant to be used and burned
+    // default
     function returnCoupon(uint256 tokenId) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
 
@@ -75,6 +76,8 @@ contract CouponNFT is ERC721, Ownable {
         //coupon.isUsed = true;
         currentCircuration--;
         _burn(tokenId); // burn the token, when it is returned to the owner
+        // who can burn this??
+        // only the owner of the token can burn the token
     }
 
     // use the coupon, but not transfering it to the store
@@ -88,13 +91,14 @@ contract CouponNFT is ERC721, Ownable {
 
         coupon.isUsed = true;
         currentCircuration--;
+        // add emit to off chain storage. 
     }
 
     function isUsed(uint256 tokenId) external view returns (bool) {
         require(_ownerOf(tokenId) != address(0), "Nonexistent token");
         return _coupons[tokenId].isUsed;
     }
-
+    
     function getCoupon(uint256 tokenId) external view returns (Coupon memory) {
         require(_ownerOf(tokenId) != address(0), "Nonexistent token");
         return _coupons[tokenId];

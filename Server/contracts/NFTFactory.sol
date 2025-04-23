@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./CouponNFT.sol";
 
-// Factory wallet to deploy and manage individual NFT collections (RestaurantNFTs)
+// Factory contract to deploy and manage individual NFT collections (RestaurantNFTs)
 contract NFTFactory {
     address public owner;                        // Owner of the factory (platform owner)
     address[] public allCollections;             // All deployed collection addresses
@@ -23,18 +23,29 @@ contract NFTFactory {
         string memory name,
         string memory symbol,
         uint256 maxSupply,
-        uint256 expiration_date
+        uint256 expiration_date,
+        uint256 contractType
     ) external returns (address) {
-        // Create new RestaurantNFT and set caller as the owner
-        CouponNFT collection = new CouponNFT(name, symbol, maxSupply, expiration_date, msg.sender);
-        address collectionAddress = address(collection);
 
-        // Track the deployed collection
-        allCollections.push(collectionAddress);
-        ownerToCollections[msg.sender].push(collectionAddress);
+        if (contractType ==1){
+            // Create new RestaurantNFT and set caller as the owner
+            CouponNFT collection = new CouponNFT(name, symbol, maxSupply, expiration_date, msg.sender);
+            address collectionAddress = address(collection);
 
-        emit CollectionDeployed(msg.sender, collectionAddress);
-        return collectionAddress;
+            // Track the deployed collection
+            allCollections.push(collectionAddress);
+            ownerToCollections[msg.sender].push(collectionAddress);
+
+            emit CollectionDeployed(msg.sender, collectionAddress);
+
+            // future implementations
+            return collectionAddress;
+        }
+        else if (contractType==2){
+            // create new MemberNFT contract
+            
+        }
+        
     }
 
     // Get all NFT collections deployed by a specific owner (restaurant)
@@ -50,3 +61,4 @@ contract NFTFactory {
         return false;
     }
 }
+
