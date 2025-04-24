@@ -6,7 +6,8 @@ import databaseService from "../database/database.service";
 export async function sendTimeStamp(req: Request, res: Response) {
     try{
         const date = new Date();
-        const token = date.getTime().toString();
+        const random = Math.random();
+        const token = (date.getTime() + random).toString();
         const message = "Verify Check at " + token;
         const address = req.query.address as string;
         const a = await databaseService.updateVerifyMessage(message, address);
@@ -25,10 +26,10 @@ export async function verifyCheck(req: Request, res: Response) {
         const result = recovered.toLowerCase() === account.toLowerCase();
 
         if(result){
-            //TODO: add database interaction
-            res.status(200).send("OK");
+            const sessionId = await databaseService.login(account);
+            res.status(200).send(sessionId);
         }else {
-            res.status(400).send("Signature does not match");
+            res.status(403).send("Signature does not match");
         }
     }catch(e){
         console.log(e);

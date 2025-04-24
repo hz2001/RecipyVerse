@@ -1,4 +1,4 @@
-import { artifacts } from "hardhat";
+import { artifacts, run } from "hardhat";
 import { ethers } from "ethers";
 import path from "node:path";
 import * as fs from "node:fs";
@@ -8,6 +8,7 @@ import env from "../global/variable"
 
 dotenv.config();
 export async function deployContract() {
+    await run("compile");
     await exportAllAbis();
     let factoryAddress = env.FACTORY_ADDRESS;
     const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || "http://localhost:8545");
@@ -63,5 +64,3 @@ async function exportAllAbis() {
         }
     }
 }
-
-// deployContract()

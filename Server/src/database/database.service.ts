@@ -1,18 +1,11 @@
 import {supabase} from "./database";
-
-
-
-
-
-interface VerifyMessage {
-    message: string;
-    address: string;
-}
+import {User, UserRole, VerifyMessage} from "./database.type";
+import {createClient} from "@supabase/supabase-js";
 
 export async function getVerifyMessage(address: string){
     try {
         const { data, error } = await supabase
-            .from('verify_message')
+            .from('verification')
             .select("*")
             .eq('address', address);
 
@@ -27,12 +20,11 @@ export async function getVerifyMessage(address: string){
         console.error('Error:', e);
         return "";
     }
-
 }
 
 export async function updateVerifyMessage(message: string, account: string){
     const { data, error } = await supabase
-        .from('verify_message')
+        .from('verification')
         .upsert(
             { address: account, message },
             { onConflict: 'address' }
@@ -40,7 +32,98 @@ export async function updateVerifyMessage(message: string, account: string){
     return error ? null : data;
 }
 
+export async function getRole(sessionId:string){
+    try{
+        const { data, error } = await supabase
+            .from('verification')
+            .select(`*,
+            users:address (role)`)
+            .eq('session_id', sessionId);
+
+        if (error) {
+            console.error('Error:', error);
+            return UserRole.USER;
+        }
+        return data && data.length > 0 ? data[0].users.role : UserRole.USER;
+
+    }catch(e){
+        console.error('Error:', e);
+        return UserRole.USER;
+    }
+}
+
+export async function login(address: string){
+
+    const sessionId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString();
+    const { data, error } = await supabase
+        .from('verification')
+        .upsert({ address, session_id: sessionId, expire_at: expiresAt }, { onConflict: 'address'})
+    try{
+
+        await supabase
+            .from('users')
+            .upsert({ wallet_address: address}, { onConflict: 'wallet_address' })
+    }catch(e){
+        console.error('Error on login:', e);
+    }
+    return error ? null : sessionId;
+}
+
+export async function getAddressBySessionId(sessionId: string){
+    const { data, error } = await supabase
+    .from('verification')
+    .select(`*`)
+    .eq('session_id', sessionId);
+    return error ? null : data && data.length > 0 ? data[0].address : null;
+}
+
+export async function uploadFile(address: string, file: Express.Multer.File){
+    try{
+        const { data, error } = await supabase.storage
+            .from('merchantlicense')
+            .upload(`${address}/license`,file.buffer, {
+                contentType: file.mimetype,
+                upsert: true
+            })
+        if(error){
+            console.error('Error on upload:', error);
+            return false;
+        }
+        return true;
+        }catch(e){
+            console.error('Error on upload:', e);
+            return false;
+    }
+}
+
+export async function updateMerchant(merchantName: string, merchantAddress: string, address: string){
+    try{
+        const {data, error} = await supabase
+            .from('merchants')
+            .upsert({
+                merchant_name: merchantName,
+                merchant_address: merchantAddress,
+                wallet_address: address,
+                is_verified: false,
+            })
+        if(error){
+            console.error('Error on update merchant:', error);
+            return false;
+        }
+        return true;
+    }catch(e){
+        console.error('Error on update merchant:', e);
+        return false;
+    }
+}
+
 export default {
     getVerifyMessage,
-    updateVerifyMessage
+    updateVerifyMessage,
+    getRole,
+    login,
+    getAddressBySessionId,
+    uploadFile,
+    updateMerchant
 }
