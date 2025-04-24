@@ -1,6 +1,5 @@
 import {supabase} from "./database";
-import {User, UserRole, VerifyMessage} from "./database.type";
-import {createClient} from "@supabase/supabase-js";
+import {User, UserRole, Verification, VerifyMessage} from "./database.type";
 
 export async function getVerifyMessage(address: string){
     try {
@@ -118,6 +117,25 @@ export async function updateMerchant(merchantName: string, merchantAddress: stri
     }
 }
 
+export async function isSessionValid(sessionId: string){
+    const {data, error} = await supabase
+        .from('verification')
+        .select(`*`)
+        .eq('session_id', sessionId);
+
+    if(error){
+        return false;
+    }
+    if(data && data.length > 0){
+        const verification = data[0] as Verification;
+        const expiresAt = new Date(verification.expire_at);
+        const now = new Date();
+        return now < expiresAt;
+    }
+    return false;
+}
+
+
 export default {
     getVerifyMessage,
     updateVerifyMessage,
@@ -125,5 +143,6 @@ export default {
     login,
     getAddressBySessionId,
     uploadFile,
-    updateMerchant
+    updateMerchant,
+    isSessionValid
 }

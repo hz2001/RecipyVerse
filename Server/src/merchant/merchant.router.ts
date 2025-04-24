@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import MerchantService from "./merchant.service";
-import {isAdmin, isMerchant} from "../authorization/auth.middleware";
+import {checkRole} from "../authorization/auth.middleware";
 
 
 
@@ -11,11 +11,11 @@ const upload = multer();
 /**
  * POST: Upload merchant's qualification
  */
-Router.post('/upload_qualification', isMerchant(), upload.single("file"),  MerchantService.uploadQualification)
+Router.post('/upload_qualification', checkRole("merchant"), upload.single("file"),  MerchantService.uploadQualification)
 
-Router.get('/my_nft_contracts', isMerchant(), MerchantService.getAllContracts)
+Router.get('/my_nft_contracts', checkRole("merchant"), MerchantService.getAllContracts)
 
-Router.get('/get_unverify_qualification',isAdmin(),MerchantService.getAllContracts)
+Router.get('/get_unverify_qualification',checkRole("admin"),MerchantService.getAllContracts)
 
 export default Router;
 

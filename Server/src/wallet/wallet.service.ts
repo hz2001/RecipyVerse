@@ -10,7 +10,7 @@ export async function sendTimeStamp(req: Request, res: Response) {
         const token = (date.getTime() + random).toString();
         const message = "Verify Check at " + token;
         const address = req.query.address as string;
-        const a = await databaseService.updateVerifyMessage(message, address);
+        await databaseService.updateVerifyMessage(message, address);
 
         res.status(200).send(message);
     }catch(e){

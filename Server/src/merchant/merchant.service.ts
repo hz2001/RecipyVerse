@@ -18,6 +18,7 @@ export async function uploadQualification(req: Request, res: Response) {
 
 export async function getAllContracts(req: Request, res: Response) {
     //TODO:
+    return res.status(200).send("OK");
 }
 
 export default {

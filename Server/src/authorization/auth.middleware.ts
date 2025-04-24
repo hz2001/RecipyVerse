@@ -1,29 +1,25 @@
 import {NextFunction, Request, Response} from "express";
-import databaseService from "../database/database.service";
+import databaseService, {isSessionValid} from "../database/database.service";
 import {UserRole} from "../database/database.type";
 
-export function isAdmin() {
+export function checkRole(requiredRole?: string) {
     return async (req: Request, res: Response, next: NextFunction) => {
         const sessionId = req.query?.sessionId;
         if (typeof sessionId !== "string" || !sessionId) return res.status(400).send("sessionId is required");
 
         const role = await databaseService.getRole(sessionId);
-        if(role != UserRole.ADMIN){
-            return res.status(404).send("You are not Owner")
-        }
-        return next();
-    }
-}
+        const valid = await databaseService.isSessionValid(sessionId);
 
-export function isMerchant() {
-    return async (req: Request, res: Response, next: NextFunction) => {
-        const sessionId = req.query?.sessionId;
-        if (typeof sessionId !== "string" || !sessionId) return res.status(400).send("sessionId is required");
+        if (!valid) return res.status(401).send("Session is expired");
 
-        const role = await databaseService.getRole(sessionId);
-        if(role != UserRole.MERCHANT){
-            return res.status(404).send("You are not Merchant")
+        if (role === UserRole.ADMIN) {
+            return next();
         }
+
+        if (requiredRole && role !== requiredRole) {
+            return res.status(403).send(`You do not have ${requiredRole} permission`);
+        }
+
         return next();
     }
 }
