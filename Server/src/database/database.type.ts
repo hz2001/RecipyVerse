@@ -26,3 +26,12 @@ export interface Verification{
     expire_at: string;
     
 }
+
+export interface Merchant{
+    id: string;
+    created_at: string;
+    wallet_address: string;
+    is_verified: boolean;
+    merchant_name: string;
+    merchant_address: string;
+}

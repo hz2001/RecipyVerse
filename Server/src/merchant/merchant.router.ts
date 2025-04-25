@@ -11,7 +11,7 @@ const upload = multer();
 /**
  * POST: Upload merchant's qualification
  */
-Router.post('/upload_qualification', checkRole("merchant"), upload.single("file"),  MerchantService.uploadQualification)
+Router.post('/upload_qualification', upload.single("file"),  MerchantService.uploadQualification)
 
 Router.get('/my_nft_contracts', checkRole("merchant"), MerchantService.getAllContracts)
 

@@ -7,9 +7,11 @@ const Router = express.Router();
 
 
 
-Router.get('/get_abi',checkRole(),ContractService.getContractAbi )
+Router.get('/get_nft_factory_abi',checkRole(),ContractService.getNFTFactoryContractAbi )
 
+Router.get('/get_nft_coupon_abi',checkRole(),ContractService.getNFTCouponContractAbi )
 
+Router.get('/get_nft_swap_abi',checkRole(),ContractService.getNFTSwapContractAbi )
 
 
 

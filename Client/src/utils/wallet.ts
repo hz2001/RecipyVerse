@@ -23,7 +23,7 @@ export async function verifyWithSignature(account: string) {
 
     const signature = await window.ethereum.request({
         method: "personal_sign",
-        params: [message, account],
+        params: [account, message],
     });
 
     try {

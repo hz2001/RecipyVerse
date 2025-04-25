@@ -22,6 +22,9 @@ app.use("/merchant", MerchantRouter)
 
 async function main() {
     await deployContract();
+
+    setInterval(updateSessionIds, 1000 * 60 * 5)
+
     try {
         const PORT = process.env.PORT || 3000;
         app.listen(PORT, () => {

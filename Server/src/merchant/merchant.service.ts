@@ -3,7 +3,6 @@ import databaseService from "../database/database.service";
 
 
 export async function uploadQualification(req: Request, res: Response) {
-
     const { merchantName, merchantAddress } = req.body;
     const file = req.file as Express.Multer.File;
     const sessionId = req.query?.sessionId as string;
@@ -11,9 +10,13 @@ export async function uploadQualification(req: Request, res: Response) {
     const address = await databaseService.getAddressBySessionId(sessionId);
 
     const bucketUploaded = await databaseService.uploadFile(address, file);
-    const databaseUpload = await databaseService.updateMerchant(merchantName, merchantAddress, address)
+    const databaseUpload = await databaseService.updateMerchant(merchantAddress, merchantName, address)
 
-
+    if(bucketUploaded && databaseUpload){
+        res.status(200).send("OK");
+    } else{
+        res.status(400).send("Failed to upload");
+    }
 }
 
 export async function getAllContracts(req: Request, res: Response) {

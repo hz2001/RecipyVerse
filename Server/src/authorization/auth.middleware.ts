@@ -1,5 +1,5 @@
 import {NextFunction, Request, Response} from "express";
-import databaseService, {isSessionValid} from "../database/database.service";
+import databaseService from "../database/database.service";
 import {UserRole} from "../database/database.type";
 
 export function checkRole(requiredRole?: string) {
@@ -7,10 +7,10 @@ export function checkRole(requiredRole?: string) {
         const sessionId = req.query?.sessionId;
         if (typeof sessionId !== "string" || !sessionId) return res.status(400).send("sessionId is required");
 
-        const role = await databaseService.getRole(sessionId);
-        const valid = await databaseService.isSessionValid(sessionId);
+        const role = await databaseService.getRoleBySessionId(sessionId);
+        const valid = await databaseService.getISSessionExpired(sessionId);
 
-        if (!valid) return res.status(401).send("Session is expired");
+        if (!valid) return res.status(401).send("Session is not valid");
 
         if (role === UserRole.ADMIN) {
             return next();

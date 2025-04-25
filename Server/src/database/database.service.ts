@@ -1,5 +1,5 @@
 import {supabase} from "./database";
-import {User, UserRole, Verification, VerifyMessage} from "./database.type";
+import {Merchant, User, UserRole, Verification, VerifyMessage} from "./database.type";
 
 export async function getVerifyMessage(address: string){
     try {
@@ -21,103 +21,137 @@ export async function getVerifyMessage(address: string){
     }
 }
 
-export async function updateVerifyMessage(message: string, account: string){
+export async function getRoleBySessionId(sessionId:string){
     const { data, error } = await supabase
         .from('verification')
-        .upsert(
-            { address: account, message },
-            { onConflict: 'address' }
-        );
-    return error ? null : data;
-}
+        .select(`*`)
+        .eq('session_id', sessionId);
 
-export async function getRole(sessionId:string){
-    try{
-        const { data, error } = await supabase
-            .from('verification')
-            .select(`*,
-            users:address (role)`)
-            .eq('session_id', sessionId);
+    const verification = data && data.length > 0 ? data[0] as Verification : null;
 
-        if (error) {
-            console.error('Error:', error);
-            return UserRole.USER;
-        }
-        return data && data.length > 0 ? data[0].users.role : UserRole.USER;
-
-    }catch(e){
-        console.error('Error:', e);
-        return UserRole.USER;
-    }
-}
-
-export async function login(address: string){
-
-    const sessionId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString();
-    const { data, error } = await supabase
-        .from('verification')
-        .upsert({ address, session_id: sessionId, expire_at: expiresAt }, { onConflict: 'address'})
-    try{
-
-        await supabase
+    if(verification){
+        const address = verification.address;
+        const {data: user} = await supabase
             .from('users')
-            .upsert({ wallet_address: address}, { onConflict: 'wallet_address' })
-    }catch(e){
-        console.error('Error on login:', e);
+            .select(`*`)
+            .eq('wallet_address', address);
+        return user && user.length > 0 ? user[0].role : UserRole.USER;
     }
-    return error ? null : sessionId;
+    return UserRole.USER;
 }
 
 export async function getAddressBySessionId(sessionId: string){
     const { data, error } = await supabase
-    .from('verification')
-    .select(`*`)
-    .eq('session_id', sessionId);
+        .from('verification')
+        .select(`*`)
+        .eq('session_id', sessionId);
     return error ? null : data && data.length > 0 ? data[0].address : null;
 }
 
+export async function updateVerifyMessage(address: string, message?: string, sessionId?: string, expireAt?: string){
+    const {data} = await supabase
+        .from('verification')
+        .select("*")
+        .eq('address', address);
+
+    const verification = data && data.length > 0 ? data[0] as Verification : null;
+    if(verification){
+        message = message ? message : verification.message;
+        sessionId = sessionId ? sessionId : verification.sessionId;
+        expireAt = expireAt ? expireAt : verification.expire_at;
+    }
+
+    const { error } = await supabase
+        .from('verification')
+        .upsert(
+            {   address: address,
+                message: message,
+                session_id: sessionId,
+                expire_at: expireAt,
+            },
+            { onConflict: 'address' }
+        );
+
+    if (error) {
+        console.error('Error:', error);
+        return { success: false , message: error.message };
+    }
+    return { success: true, message: "Success" };
+}
+
 export async function uploadFile(address: string, file: Express.Multer.File){
-    try{
-        const { data, error } = await supabase.storage
-            .from('merchantlicense')
-            .upload(`${address}/license`,file.buffer, {
-                contentType: file.mimetype,
-                upsert: true
-            })
-        if(error){
-            console.error('Error on upload:', error);
-            return false;
-        }
-        return true;
-        }catch(e){
-            console.error('Error on upload:', e);
-            return false;
+    const { error } = await supabase.storage
+        .from('merchantlicense')
+        .upload(`${address}/license`,file.buffer, {
+            contentType: file.mimetype,
+            upsert: true
+        })
+
+    if(error){
+        console.error('Error on upload:', error);
+        return {success:false, message:error.message};
     }
+    return {success:true, message:"Success"};
+
 }
 
-export async function updateMerchant(merchantName: string, merchantAddress: string, address: string){
-    try{
-        const {data, error} = await supabase
-            .from('merchants')
-            .upsert({
+export async function updateMerchant(merchantAddress: string, merchantName?: string, walletAddress?: string, isVerified: boolean = false){
+    const {data} = await supabase
+        .from('merchants')
+        .select(`*`)
+        .eq('merchant_address', merchantAddress);
+
+    const merchant = data && data.length > 0 ? data[0] as Merchant : null;
+    if(merchant){
+        merchantName = merchantName ? merchantName : merchant.merchant_name;
+        walletAddress = walletAddress ? walletAddress : merchant.wallet_address;
+        isVerified = isVerified ? isVerified : merchant.is_verified;
+    }
+
+    const { error } = await supabase
+        .from('merchants')
+        .upsert(
+            {   merchant_address: merchantAddress,
                 merchant_name: merchantName,
-                merchant_address: merchantAddress,
-                wallet_address: address,
-                is_verified: false,
-            })
-        if(error){
-            console.error('Error on update merchant:', error);
-            return false;
-        }
-        return true;
-    }catch(e){
-        console.error('Error on update merchant:', e);
-        return false;
+                wallet_address: walletAddress,
+                is_verified: isVerified,
+            },
+            { onConflict: 'merchant_address' }
+        );
+
+    if (error) {
+        console.error('Error:', error);
+        return { success: false , message: error.message };
     }
+    return { success: true, message: "Success" };
 }
 
-export async function isSessionValid(sessionId: string){
+export async function updateUser(address: string, role: UserRole = UserRole.USER){
+    let {data} = await supabase
+        .from('users')
+        .select(`*`)
+        .eq('wallet_address', address);
+    const user = data && data.length > 0 ? data[0] as User : null;
+
+    if(user){
+        role = role ? role : user.role;
+    }
+
+    let {error} = await supabase
+        .from('users')
+        .upsert({
+            wallet_address: address,
+            role: role
+        })
+
+    if(error){
+        console.error('Error on update user:', error);
+        return {success:false, message:error.message};
+    }
+    return {success:true, message:"Success"};
+}
+
+export async function getISSessionExpired(sessionId: string){
     const {data, error} = await supabase
         .from('verification')
         .select(`*`)
@@ -138,11 +172,11 @@ export async function isSessionValid(sessionId: string){
 
 export default {
     getVerifyMessage,
-    updateVerifyMessage,
-    getRole,
-    login,
+    getRoleBySessionId,
     getAddressBySessionId,
+    getISSessionExpired,
+    updateUser,
     uploadFile,
     updateMerchant,
-    isSessionValid
+    updateVerifyMessage,
 }
