@@ -1,15 +1,10 @@
-
-
-
 export interface VerifyMessage {
     message: string;
     address: string;
 }
 
 export enum UserRole {
-    ADMIN = "admin",
-    USER = "user",
-    MERCHANT = "merchant"
+    ADMIN = "admin", USER = "user", MERCHANT = "merchant"
 }
 
 export interface User {
@@ -19,15 +14,15 @@ export interface User {
     role: UserRole;
 }
 
-export interface Verification{
+export interface Verification {
     address: string;
     message: string;
     sessionId: string;
     expire_at: string;
-    
+
 }
 
-export interface Merchant{
+export interface Merchant {
     id: string;
     created_at: string;
     wallet_address: string;

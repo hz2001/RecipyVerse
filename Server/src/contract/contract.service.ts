@@ -1,43 +1,33 @@
-import { Request, Response } from 'express'
+import {Request, Response} from 'express'
 import env from "../global/variable";
-import path from "node:path";
-import fs from "node:fs";
 
-export function getNFTFactoryContractAbi(req:Request, res:Response){
+export function getNFTFactoryContractAbi(req: Request, res: Response) {
     const abi = require('../../../build/abis/NFTFactory.json');
     const address = env.FACTORY_ADDRESS;
 
     res.status(200).json({
-        abi,
-        address
+        abi, address
     });
 }
 
-export function getNFTCouponContractAbi(req:Request, res:Response){
-    const artifactPath = path.resolve(__dirname, "../../../build/artifacts/contracts/CouponNFT.sol/CouponNFT.json");
-    const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
-    const abi = artifact.abi;
-    const bytecode = artifact.bytecode;
+export function getNFTCouponContractAbi(req: Request, res: Response) {
+    const abi = require('../../../build/abis/CouponNFT.json');
+
     res.status(200).json({
-        abi,
-        bytecode
+        abi
     });
 }
 
-export function getNFTSwapContractAbi(req:Request, res:Response){
-    const artifactPath = path.resolve(__dirname, "../../../build/artifacts/contracts/ConditionalNFTSwap.sol/ConditionalNFTSwap.json");
-    const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
-    const abi = artifact.abi;
-    const bytecode = artifact.bytecode;
+export function getNFTSwapContractAbi(req: Request, res: Response) {
+    const abi = require('../../../build/abis/ConditionalNFTSwap.json');
+    const address = env.SWAP_ADDRESS;
+
     res.status(200).json({
-        abi,
-        bytecode
+        abi, address
     });
 }
 
 
 export default {
-    getNFTFactoryContractAbi,
-    getNFTCouponContractAbi,
-    getNFTSwapContractAbi
+    getNFTFactoryContractAbi, getNFTCouponContractAbi, getNFTSwapContractAbi
 }

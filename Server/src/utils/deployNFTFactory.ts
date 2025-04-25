@@ -1,5 +1,5 @@
-import { artifacts, run } from "hardhat";
-import { ethers } from "ethers";
+import {artifacts, run} from "hardhat";
+import {ethers} from "ethers";
 import path from "node:path";
 import * as fs from "node:fs";
 import {updateEnv} from "./utils";
@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import env from "../global/variable"
 
 dotenv.config();
+
 export async function deployContract() {
     await run("compile");
     await exportAllAbis();
@@ -45,7 +46,7 @@ async function exportAllAbis() {
     const outputDir = path.resolve(__dirname, "../../../build/abis");
 
     if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
+        fs.mkdirSync(outputDir, {recursive: true});
     }
 
     const files = fs.readdirSync(contractsDir).filter(file => file.endsWith(".sol"));

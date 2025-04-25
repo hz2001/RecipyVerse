@@ -19,11 +19,11 @@ export function updateEnv(key: string, value: string) {
     fs.writeFileSync(envPath, envConfig);
 }
 
-export async function updateSessionIds(){
+export async function updateSessionIds() {
     console.log("Cleaning up expired session_id");
     const now = new Date().toISOString();
 
-    const { error } = await supabase
+    const {error} = await supabase
         .from('verification')
         .delete()
         .lt('expire_at', now);
