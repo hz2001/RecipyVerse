@@ -161,14 +161,28 @@ export async function getISSessionExpired(sessionId: string) {
 }
 
 export async function deleteBySessionId(sessionId: string) {
-    const {error} = await supabase
+    const {data: foundData, error} = await supabase
         .from('verification')
         .delete()
-        .eq('session_id', sessionId);
+        .eq('session_id', sessionId)
+        .select();
+    const user = foundData && foundData.length > 0 ? foundData[0] as User : null;
     if (error) {
-        console.error('Error on delete by session id:', error);
+        console.error('Error on find by session id:', error);
         return {success: false, message: error.message};
     }
+    
+    if (user) {
+        const {error} = await supabase
+            .from('verification')
+            .delete()
+            .eq('session_id', sessionId);
+        if (error) {
+            console.error('Error on delete by session id:', error);
+            return {success: false, message: error.message};       
+        }
+    }
+    
     return {success: true, message: "Success"};
 }
 
