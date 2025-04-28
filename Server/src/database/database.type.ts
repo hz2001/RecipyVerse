@@ -1,0 +1,32 @@
+export interface VerifyMessage {
+    message: string;
+    address: string;
+}
+
+export enum UserRole {
+    ADMIN = "admin", USER = "user", MERCHANT = "merchant"
+}
+
+export interface User {
+    wallet_address: string;
+    created_at: string;
+    user_id: string;
+    role: UserRole;
+}
+
+export interface Verification {
+    address: string;
+    message: string;
+    sessionId: string;
+    expire_at: string;
+
+}
+
+export interface Merchant {
+    id: string;
+    created_at: string;
+    wallet_address: string;
+    is_verified: boolean;
+    merchant_name: string;
+    merchant_address: string;
+}

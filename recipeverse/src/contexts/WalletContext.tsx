@@ -60,19 +60,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   }, []);
 
-//   const handleAccountsChanged = (accounts: string[]) => {
-//      if (!testMode) {
-//         if (accounts.length === 0) {
-//           console.log('MetaMask disconnected.');
-//           disconnectWallet();
-//         } else {
-//           const walletId = accounts[0];
-//           console.log('MetaMask account changed:', walletId);
-//           setConnectedWallet(walletId);
-//           fetchDataForWallet(walletId);
-//         }
-//      }
-//   };
 
 
   const fetchDataForWallet = useCallback(async (walletId: string): Promise<UserData | undefined> => {
