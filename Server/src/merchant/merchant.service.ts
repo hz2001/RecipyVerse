@@ -1,5 +1,6 @@
-import { Request, Response } from 'express'
+import {Request, Response} from 'express'
 import databaseService from "../database/database.service";
+import {UserRole} from "../database/database.type";
 
 
 export async function uploadQualification(req: Request, res: Response) {
@@ -13,6 +14,7 @@ export async function uploadQualification(req: Request, res: Response) {
     const databaseUpload = await databaseService.updateMerchant(merchantAddress, merchantName, address)
 
     if(bucketUploaded && databaseUpload){
+        await databaseService.updateUser(address,UserRole.MERCHANT)
         res.status(200).send("OK");
     } else{
         await databaseService.deleteBySessionId(sessionId);
@@ -25,7 +27,17 @@ export async function getAllContracts(req: Request, res: Response) {
     return res.status(200).send("OK");
 }
 
+export async function getInfoBySessionId(req: Request, res: Response){
+    const sessionId = req.query?.sessionId as string;
+    const merchant = await databaseService.getMerchantBySessionId(sessionId);
+    if(merchant){
+        return res.status(200).send(merchant);
+    }
+    return res.status(400).send("Failed to get merchant info");
+}
+
 export default {
     uploadQualification,
-    getAllContracts
+    getAllContracts,
+    getInfoBySessionId
 }

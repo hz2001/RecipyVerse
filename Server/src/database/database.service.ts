@@ -186,6 +186,22 @@ export async function deleteBySessionId(sessionId: string) {
     return {success: true, message: "Success"};
 }
 
+export async function getMerchantBySessionId(sessionId: string) {
+    const {data, error} = await supabase
+        .from('verification')
+        .select(`*`)
+        .eq('session_id', sessionId);
+    const verification = data && data.length > 0 ? data[0] as Verification : null;
+    if (verification) {
+        const address = verification.address;
+        const {data: merchant} = await supabase
+            .from('merchants')
+            .select(`*`)
+            .eq('wallet_address', address);
+        return merchant && merchant.length > 0 ? merchant[0] as Merchant : null;
+    }
+}
+
 export default {
     getVerifyMessage,
     getRoleBySessionId,
@@ -195,5 +211,6 @@ export default {
     uploadFile,
     updateMerchant,
     updateVerifyMessage,
-    deleteBySessionId
+    deleteBySessionId,
+    getMerchantBySessionId
 }
