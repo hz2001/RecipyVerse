@@ -160,6 +160,17 @@ export async function getISSessionExpired(sessionId: string) {
     return false;
 }
 
+export async function deleteBySessionId(sessionId: string) {
+    const {error} = await supabase
+        .from('verification')
+        .delete()
+        .eq('session_id', sessionId);
+    if (error) {
+        console.error('Error on delete by session id:', error);
+        return {success: false, message: error.message};
+    }
+    return {success: true, message: "Success"};
+}
 
 export default {
     getVerifyMessage,
@@ -170,4 +181,5 @@ export default {
     uploadFile,
     updateMerchant,
     updateVerifyMessage,
+    deleteBySessionId
 }

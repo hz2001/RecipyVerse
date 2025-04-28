@@ -15,6 +15,7 @@ export async function uploadQualification(req: Request, res: Response) {
     if(bucketUploaded && databaseUpload){
         res.status(200).send("OK");
     } else{
+        await databaseService.deleteBySessionId(sessionId);
         res.status(400).send("Failed to upload");
     }
 }
