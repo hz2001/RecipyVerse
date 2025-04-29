@@ -5,15 +5,15 @@ import userService, { UserRole, User } from '../services/userService';
 import merchantService, { Merchant } from '../services/merchantService';
 import NftTypeSelectionModal from '../components/NftTypeSelectionModal';
 import NftCard from '../components/NftCard';
-import nftService, { NFT } from '../services/nftService';
+import nftService, { CouponNFT } from '../services/nftService';
 import MerchantVerificationInputModal from '../components/MerchantVerificationInputModal';
 
 
 
 // NFT卡片适配器
-const adaptNftForCard = (nft: NFT): any => ({
+const adaptNftForCard = (nft: CouponNFT): any => ({
   ...nft,
-  coupon_name: nft.coupon_name || nft.name || 'Unnamed NFT'
+  coupon_name: nft.coupon_name || 'Unnamed NFT'
 });
 
 const MerchantProfilePage: React.FC = () => {
@@ -26,18 +26,23 @@ const MerchantProfilePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // NFT数据
-  const [nfts, setNfts] = useState<NFT[]>([]);
-  const [createdNfts, setCreatedNfts] = useState<NFT[]>([]);
+  const [nfts, setNfts] = useState<CouponNFT[]>([]);
+  const [createdNfts, setCreatedNfts] = useState<CouponNFT[]>([]);
   
   // NFT类型选择模态框
   const [isNftTypeModalOpen, setIsNftTypeModalOpen] = useState(false);
   
   // NFT详情模态框
   const [showNftDetailModal, setShowNftDetailModal] = useState(false);
-  const [selectedNftForDetail, setSelectedNftForDetail] = useState<NFT | null>(null);
+  const [selectedNftForDetail, setSelectedNftForDetail] = useState<CouponNFT | null>(null);
 
   // 添加商家验证模态框状态
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+
+  // 处理创建NFT按钮点击
+  const handleCreateNft = () => {
+    navigate('/create-coupon');
+  };
 
   // 检查是否已登录和是否是商家
   useEffect(() => {
@@ -100,7 +105,7 @@ const MerchantProfilePage: React.FC = () => {
       console.log('获取用户拥有的NFT，钱包地址:', address);
       
       // 使用nftService获取用户拥有的NFT
-      const ownedNfts = await nftService.getUserOwnedNFTs(address);
+      const ownedNfts = await nftService.getUserOwnedNFTs();
       console.log('获取到用户拥有的NFT:', ownedNfts);
       // 确保nfts始终是一个数组
       setNfts(Array.isArray(ownedNfts) ? ownedNfts : []);
@@ -120,7 +125,7 @@ const MerchantProfilePage: React.FC = () => {
       console.log('获取用户创建的NFT，钱包地址:', address);
       
       // 使用nftService获取用户创建的NFT
-      const created = await nftService.getUserCreatedNFTs(address);
+      const created = await nftService.getUserCreatedNFTs();
       console.log('获取到用户创建的NFT:', created);
       // 确保createdNfts始终是一个数组
       setCreatedNfts(Array.isArray(created) ? created : []);
@@ -150,7 +155,7 @@ const MerchantProfilePage: React.FC = () => {
   };
 
   // 处理NFT详情模态框
-  const handleOpenNftDetail = async (nft: NFT) => {
+  const handleOpenNftDetail = async (nft: CouponNFT) => {
     try {
       // 获取完整的NFT详情
       if (nft.id) {
@@ -263,9 +268,9 @@ const MerchantProfilePage: React.FC = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-500">Verification Status</p>
                   <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    merchantInfo.is_verified === "true" ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    merchantInfo.is_verified === true ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                   }`}>
-                    {merchantInfo.is_verified === "true" ? 'Verified' : 'Pending Verification'}
+                    {merchantInfo.is_verified === true ? 'Verified' : 'Pending Verification'}
                   </p>
                 </div>
               </>
@@ -362,7 +367,21 @@ const MerchantProfilePage: React.FC = () => {
       
       {/* 用户的NFT信息 - 创建的NFT */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">My Creations</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-700">My Creations</h2>
+          {/* 添加创建NFT按钮 - 仅对已验证商家显示 */}
+          {merchantInfo?.is_verified && (
+            <button
+              onClick={handleCreateNft}
+              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm flex items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Create New NFT
+            </button>
+          )}
+        </div>
         {createdNfts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {createdNfts.map((nft, index) => (
@@ -378,6 +397,17 @@ const MerchantProfilePage: React.FC = () => {
           <div className="bg-gray-50 p-6 rounded-lg text-center">
             <p className="text-gray-600">You haven't created any NFTs with this wallet yet.</p>
             
+            {merchantInfo?.is_verified && (
+              <div className="mt-6">
+                <button
+                  onClick={handleCreateNft}
+                  className="px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors font-medium"
+                >
+                  Create Your First NFT
+                </button>
+              </div>
+            )}
+            
             {userData?.isMerchant && !userData.isverified && (
               <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-yellow-800 font-medium mb-3">Your merchant account is pending verification</p>
@@ -387,17 +417,6 @@ const MerchantProfilePage: React.FC = () => {
                   className="w-full sm:w-auto px-6 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors font-medium"
                 >
                   Resubmit Verification Information
-                </button>
-              </div>
-            )}
-            
-            {userData?.isMerchant && userData.isverified && (
-              <div className="mt-6">
-                <button
-                  onClick={handleOpenNftTypeModal}
-                  className="px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors font-medium"
-                >
-                  Create Your First NFT
                 </button>
               </div>
             )}
@@ -424,8 +443,8 @@ const MerchantProfilePage: React.FC = () => {
               <img
                 src={selectedNftForDetail.coupon_image 
                   ? `/images/${selectedNftForDetail.coupon_image}` 
-                  : selectedNftForDetail.imageUrl || '/placeholder-images/nft-default.jpg'}
-                alt={selectedNftForDetail.coupon_name || selectedNftForDetail.name || 'NFT'}
+                  : selectedNftForDetail.coupon_image || '/placeholder-images/nft-default.jpg'}
+                alt={selectedNftForDetail.coupon_name || 'NFT'}
                 className="w-full h-full object-cover"
               />
               <button 
@@ -441,7 +460,7 @@ const MerchantProfilePage: React.FC = () => {
             {/* 下方详情区域 */}
             <div className="p-6">
               <h2 className="text-2xl font-bold mb-2 text-gray-800">
-                {selectedNftForDetail.coupon_name || selectedNftForDetail.name || 'NFT'}
+                {selectedNftForDetail.coupon_name || 'NFT'}
               </h2>
               
               <div className="mb-4 flex items-center">
@@ -460,8 +479,7 @@ const MerchantProfilePage: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-semibold text-gray-600 mb-1">Merchant</h3>
                     <p className="text-gray-800">
-                      {selectedNftForDetail.details?.merchantName || 
-                       selectedNftForDetail.merchantName || 
+                      {selectedNftForDetail.merchant_name || 
                        'Unknown Merchant'}
                     </p>
                   </div>
@@ -470,7 +488,7 @@ const MerchantProfilePage: React.FC = () => {
                     <p className="text-gray-800">
                       {selectedNftForDetail.expires_at 
                         ? new Date(selectedNftForDetail.expires_at).toLocaleDateString() 
-                        : selectedNftForDetail.expirationDate || 'N/A'}
+                        : selectedNftForDetail.expires_at || 'N/A'}
                     </p>
                   </div>
                   <div>
@@ -488,7 +506,7 @@ const MerchantProfilePage: React.FC = () => {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2">Description</h3>
                 <p className="text-gray-700">
-                  {selectedNftForDetail.details?.description || 
+                  {
                    selectedNftForDetail.description || 
                    'No description available.'}
                 </p>

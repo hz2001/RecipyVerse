@@ -9,6 +9,7 @@ import UserProfilePage from './pages/UserProfilePage'
 import MerchantProfilePage from './pages/MerchantProfilePage'
 import AdminPage from './pages/AdminPage'
 import HomePage from './pages/HomePage'
+import CreateCouponPage from './pages/CreateCouponPage'
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
               <Route path="/nft/:nftId" element={<NftDetailPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/admin/verification" element={<VerificationManagementPage />} />
+              <Route path="/create-coupon" element={<CreateCouponPage />} />
               <Route path="*" element={<div className="p-12 text-center">Page Not Found</div>} />
             </Routes>
           </div>
