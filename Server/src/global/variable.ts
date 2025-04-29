@@ -1,5 +1,3 @@
-
-
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -9,6 +7,8 @@ const env = {
     SUPABASE_URL: process.env.SUPABASE_URL || "",
 
     SUPABASE_KEY: process.env.SUPABASE_KEY || "",
+
+    SWAP_ADDRESS: process.env.SWAP_ADDRESS || "",
 }
 
 export default env;

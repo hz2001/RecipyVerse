@@ -1,49 +1,53 @@
-import { Request, Response } from 'express'
-import { verifyMessage } from "ethers";
+import {Request, Response} from 'express'
+import {verifyMessage} from "ethers";
 import databaseService from "../database/database.service";
 
-
 export async function sendTimeStamp(req: Request, res: Response) {
-    try{
+    try {
         const date = new Date();
-        const token = date.getTime().toString();
+        const random = Math.random();
+        const token = (date.getTime() + random).toString();
         const message = "Verify Check at " + token;
         const address = req.query.address as string;
-        const a = await databaseService.updateVerifyMessage(message, address);
-
+        const {success: isSuccess, message: errorMessage} = await databaseService.updateVerifyMessage(address, message);
+        if (!isSuccess) {
+            return res.status(403).send("Failed to update verify message:" + errorMessage);
+        }
         res.status(200).send(message);
-    }catch(e){
+    } catch (e) {
         console.log(e);
     }
 }
 
 export async function verifyCheck(req: Request, res: Response) {
-    try{
-        const { sign, account } = req.body;
+    try {
+        const {sign, account} = req.body;
         const message = await databaseService.getVerifyMessage(account) as string;
         const recovered = verifyMessage(message, sign);
         const result = recovered.toLowerCase() === account.toLowerCase();
 
-        if(result){
-            //TODO: add database interaction
-            res.status(200).send("OK");
-        }else {
-            res.status(400).send("Signature does not match");
+        if (result) {
+            const sessionId = crypto.randomUUID();
+            const expireAt = new Date(Date.now() + 3600000).toISOString();
+            const {
+                success: isSuccess,
+                message: errorMessage
+            } = await databaseService.updateVerifyMessage(account, undefined, sessionId, expireAt);
+
+            if (!isSuccess) {
+                return res.status(403).send("Failed to update verify message:" + errorMessage);
+            }
+            await databaseService.updateUser(account);
+            res.status(200).send(sessionId);
+        } else {
+            res.status(403).send("Signature does not match");
         }
-    }catch(e){
+    } catch (e) {
         console.log(e);
     }
 
 }
 
-
-
-
-
-
-
-
 export default {
-    verifyCheck,
-    sendTimeStamp
+    verifyCheck, sendTimeStamp
 }
