@@ -66,26 +66,11 @@ class MerchantServiceImpl implements MerchantService {
         return [];
       }
 
-      const response = await axiosInstance.get('/api/merchant/get_created_nfts');
+      const response = await axiosInstance.get('/api/merchant/my_nft_contracts');
       
       if (response.status === 200 && response.data) {
-        return response.data.map((nft: any) => ({
-          id: nft.id.toString(),
-          coupon_name: nft.coupon_name,
-          coupon_type: nft.coupon_type,
-          coupon_image: nft.coupon_image,
-          expires_at: nft.expires_at,
-          total_supply: nft.total_supply,
-          creator_address: nft.creator_address,
-          contract_address: nft.contract_address,
-          owner_address: nft.owner_address,
-          is_used: nft.is_used,
-          description: JSON.stringify(nft.details),
-          created_at: nft.created_at,
-          swapping: nft.swapping ? Object.keys(nft.swapping) : [],
-          merchant_name: nft.merchant_name,
-          token_id: nft.token_id
-        }));
+        console.log(response.data);
+        return response.data;
       }
 
       return [];

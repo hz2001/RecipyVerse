@@ -41,7 +41,8 @@ const MerchantProfilePage: React.FC = () => {
 
   // 处理创建NFT按钮点击
   const handleCreateNft = () => {
-    navigate('/create-coupon');
+    console.log('Opening NFT type selection modal');
+    setIsNftTypeModalOpen(true);
   };
 
   // 检查是否已登录和是否是商家
@@ -125,31 +126,28 @@ const MerchantProfilePage: React.FC = () => {
       console.log('获取用户创建的NFT，钱包地址:', address);
       
       // 使用nftService获取用户创建的NFT
-      const created = await nftService.getUserCreatedNFTs();
+      const created = await merchantService.getMyNFTContracts();
       console.log('获取到用户创建的NFT:', created);
+      
       // 确保createdNfts始终是一个数组
       setCreatedNfts(Array.isArray(created) ? created : []);
     } catch (err) {
       console.error('获取创建的NFT失败:', err);
       setError('Failed to load your created NFTs. Please try again later.');
-      // 发生错误时设置为空数组
       setCreatedNfts([]);
     }
   };
 
-  // 处理NFT类型选择
-  const handleOpenNftTypeModal = () => {
-    setIsNftTypeModalOpen(true);
-  };
-  
   // 处理选择优惠券NFT
   const handleSelectCoupon = () => {
+    console.log('Selected Coupon NFT');
     setIsNftTypeModalOpen(false);
     navigate('/create-coupon');
   };
   
   // 处理选择会员NFT
   const handleSelectMembership = () => {
+    console.log('Selected Membership NFT');
     setIsNftTypeModalOpen(false);
     alert('Membership NFT creation is coming soon!');
   };
@@ -161,9 +159,19 @@ const MerchantProfilePage: React.FC = () => {
       if (nft.id) {
         const nftDetails = await nftService.getNFTDetails(nft.id);
         if (nftDetails) {
+          // 获取商家信息
+          if (nftDetails.creator_address) {
+            try {
+              const merchantInfo = await merchantService.getMerchantInfo();
+              if (merchantInfo) {
+                nftDetails.merchant_name = merchantInfo.merchant_name;
+              }
+            } catch (merchantErr) {
+              console.error('获取商家信息失败:', merchantErr);
+            }
+          }
           setSelectedNftForDetail(nftDetails);
         } else {
-          // 如果无法获取详情，使用当前NFT数据
           setSelectedNftForDetail(nft);
         }
       } else {
@@ -173,7 +181,6 @@ const MerchantProfilePage: React.FC = () => {
       setShowNftDetailModal(true);
     } catch (err) {
       console.error('获取NFT详情失败:', err);
-      // 即使失败也显示当前信息
       setSelectedNftForDetail(nft);
       setShowNftDetailModal(true);
     }
@@ -300,7 +307,7 @@ const MerchantProfilePage: React.FC = () => {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-700">Merchant Tools</h2>
             <button
-              onClick={handleOpenNftTypeModal}
+              onClick={handleCreateNft}
               className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm flex items-center"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -424,27 +431,32 @@ const MerchantProfilePage: React.FC = () => {
         )}
       </div>
       
-      {/* NFT类型选择模态框 */}
-      {userData?.isMerchant && userData.isverified && (
-        <NftTypeSelectionModal
-          isOpen={isNftTypeModalOpen}
-          onClose={() => setIsNftTypeModalOpen(false)}
-          onSelectCoupon={handleSelectCoupon}
-          onSelectMembership={handleSelectMembership}
-        />
-      )}
-      
-      {/* NFT详情模态框 */}
+      {/* Modals */}
+      {/* NFT Type Selection Modal */}
+      <NftTypeSelectionModal
+        isOpen={isNftTypeModalOpen}
+        onClose={() => setIsNftTypeModalOpen(false)}
+        onSelectCoupon={handleSelectCoupon}
+        onSelectMembership={handleSelectMembership}
+      />
+
+      {/* Merchant Verification Modal */}
+      <MerchantVerificationInputModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        onSubmit={handleVerificationSubmit}
+        merchantId={connectedWallet || ''}
+      />
+
+      {/* NFT Detail Modal */}
       {showNftDetailModal && selectedNftForDetail && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-0 max-w-xl w-11/12 max-h-[90vh] overflow-y-auto">
             {/* 上方图片区域 */}
             <div className="w-full h-64 bg-gray-200 relative">
               <img
-                src={selectedNftForDetail.coupon_image 
-                  ? `/images/${selectedNftForDetail.coupon_image}` 
-                  : selectedNftForDetail.coupon_image || '/placeholder-images/nft-default.jpg'}
-                alt={selectedNftForDetail.coupon_name || 'NFT'}
+                src={selectedNftForDetail.coupon_image}
+                alt={selectedNftForDetail.coupon_name}
                 className="w-full h-full object-cover"
               />
               <button 
@@ -467,9 +479,9 @@ const MerchantProfilePage: React.FC = () => {
                 <span className="inline-block bg-amber-100 text-amber-700 px-2 py-1 text-xs font-semibold rounded">
                   {selectedNftForDetail.coupon_type || 'NFT'}
                 </span>
-                {selectedNftForDetail.creator_address && (
+                {selectedNftForDetail.merchant_name && (
                   <span className="ml-2 text-sm text-gray-500">
-                    Created by {selectedNftForDetail.creator_address?.substring(0, 6)}...{selectedNftForDetail.creator_address?.substring(38) || ''}
+                    Created by {selectedNftForDetail.merchant_name}
                   </span>
                 )}
               </div>
@@ -478,38 +490,67 @@ const MerchantProfilePage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-600 mb-1">Merchant</h3>
-                    <p className="text-gray-800">
-                      {selectedNftForDetail.merchant_name || 
-                       'Unknown Merchant'}
-                    </p>
+                    <p className="text-gray-800">{selectedNftForDetail.merchant_name || 'Unknown'}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-gray-600 mb-1">Expiration Date</h3>
                     <p className="text-gray-800">
-                      {selectedNftForDetail.expires_at 
-                        ? new Date(selectedNftForDetail.expires_at).toLocaleDateString() 
-                        : selectedNftForDetail.expires_at || 'N/A'}
+                      {new Date(selectedNftForDetail.expires_at).toLocaleDateString()}
                     </p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Token ID</h3>
-                    <p className="text-gray-800">{selectedNftForDetail.token_id || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Total Supply</h3>
-                    <p className="text-gray-800">{selectedNftForDetail.total_supply || 1}</p>
                   </div>
                 </div>
               </div>
               
-              {/* 描述部分 */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-2">Description</h3>
-                <p className="text-gray-700">
-                  {
-                   selectedNftForDetail.description || 
-                   'No description available.'}
-                </p>
+              {/* 详细信息区域 */}
+              {selectedNftForDetail.description && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-2">Details</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    {(() => {
+                      try {
+                        console.log('Raw description:', selectedNftForDetail.description);
+                        const details = typeof selectedNftForDetail.description === 'string' 
+                          ? JSON.parse(selectedNftForDetail.description)
+                          : selectedNftForDetail.description;
+                        console.log('Parsed details:', details);
+                        return (
+                          <div className="space-y-3">
+                            {details.benefits && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-500">Benefits</h4>
+                                <p className="text-gray-800">{details.benefits}</p>
+                              </div>
+                            )}
+                            {details.description && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-500">Description</h4>
+                                <p className="text-gray-800">{details.description}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } catch (e) {
+                        console.error('Error parsing description:', e);
+                        return <p className="text-gray-800">{selectedNftForDetail.description}</p>;
+                      }
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* 合约信息 */}
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <h3 className="text-sm font-semibold text-gray-600 mb-2">Contract Information</h3>
+                <div className="space-y-2">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Contract Address</h4>
+                    <p className="text-gray-800 font-mono text-sm break-all">{selectedNftForDetail.contract_address}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Creator Address</h4>
+                    <p className="text-gray-800 font-mono text-sm break-all">{selectedNftForDetail.creator_address}</p>
+                  </div>
+                </div>
               </div>
               
               {/* 操作按钮 */}
@@ -551,14 +592,6 @@ const MerchantProfilePage: React.FC = () => {
           Disconnect
         </button>
       </div>
-
-      {/* Merchant Verification Modal */}
-      <MerchantVerificationInputModal
-        isOpen={isVerificationModalOpen}
-        onClose={() => setIsVerificationModalOpen(false)}
-        onSubmit={handleVerificationSubmit}
-        merchantId={connectedWallet || ''}
-      />
     </div>
   );
 };
