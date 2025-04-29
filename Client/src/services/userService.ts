@@ -43,8 +43,7 @@ class UserServiceImpl implements UserService {
     }
     
     try {
-      const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
-      const response = await axiosInstance.get(`/api/user/get_info?sessionId=${sessionId}`);
+      const response = await axiosInstance.get(`/api/user/get_info`);
       if (response.status === 200) {
         this.userCache = response.data;
       }
