@@ -1,4 +1,5 @@
 import axiosInstance from './api';
+import { CouponNFT } from './nftService';
 
 /**
  * 商家实体接口
@@ -17,7 +18,7 @@ export interface Merchant {
  */
 export interface MerchantService {
   uploadQualification(merchantName: string, merchantAddress: string, file: File): Promise<boolean>;
-  getMyNFTContracts(): Promise<any[]>;
+  getMyNFTContracts(): Promise<CouponNFT[]>;
   getMerchantInfo(): Promise<Merchant>;
 }
 
@@ -25,7 +26,7 @@ export interface MerchantService {
  * 商家服务实现
  */
 class MerchantServiceImpl implements MerchantService {
-  /**
+  /**S
    * 上传商家资质认证
    * @param merchantName 商家名称
    * @param merchantAddress 商家地址
@@ -57,17 +58,39 @@ class MerchantServiceImpl implements MerchantService {
    * 获取我的NFT合约列表
    * @returns NFT合约列表
    */
-  async getMyNFTContracts(): Promise<any[]> {
+  async getMyNFTContracts(): Promise<CouponNFT[]> {
     try {
-      const response = await axiosInstance.get(`/api/merchant/my_nft_contracts`);
-      
-      if (response.status === 200) {
-        return response.data || [];
+      const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
+      if (!sessionId) {
+        console.error('未找到会话ID，请先连接钱包');
+        return [];
       }
+
+      const response = await axiosInstance.get('/api/merchant/get_created_nfts');
       
+      if (response.status === 200 && response.data) {
+        return response.data.map((nft: any) => ({
+          id: nft.id.toString(),
+          coupon_name: nft.coupon_name,
+          coupon_type: nft.coupon_type,
+          coupon_image: nft.coupon_image,
+          expires_at: nft.expires_at,
+          total_supply: nft.total_supply,
+          creator_address: nft.creator_address,
+          contract_address: nft.contract_address,
+          owner_address: nft.owner_address,
+          is_used: nft.is_used,
+          description: JSON.stringify(nft.details),
+          created_at: nft.created_at,
+          swapping: nft.swapping ? Object.keys(nft.swapping) : [],
+          merchant_name: nft.merchant_name,
+          token_id: nft.token_id
+        }));
+      }
+
       return [];
     } catch (error) {
-      console.error('Failed to get NFT contracts:', error);
+      console.error('获取商家NFT合约失败:', error);
       return [];
     }
   }
