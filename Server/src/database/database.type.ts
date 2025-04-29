@@ -48,4 +48,5 @@ export interface NFT {
     total_supply: number;
     swapping: string;
     contract_address: string;
+    detail_hash: string;
 }

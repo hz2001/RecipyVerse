@@ -65,7 +65,7 @@ const nftService = {
       const response = await axiosInstance.get(`/api/user/get_nfts`);
 
       const data = response.data;
-      
+
       // Transform the response data to match CouponNFT structure
       return data.map((nft: any) => ({
         id: nft.id,
@@ -155,7 +155,7 @@ const nftService = {
         throw new Error('未找到会话ID，请先连接钱包');
       }
 
-      const response = await axiosInstance.post('/nft/upload-image', formData, {
+      const response = await axiosInstance.post('/api/nft/upload-image', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         }
@@ -231,7 +231,7 @@ const nftService = {
       };
 
       // 3. Send to backend API
-      const response = await axiosInstance.post('/nft/create-coupon', nftData);
+      const response = await axiosInstance.post('/api/nft/create_nft', nftData);
 
       if (response.status === 200 && response.data) {
         return response.data;

@@ -7,6 +7,7 @@ import UserRouter from "./user/user.router";
 import WalletRouter from './wallet/wallet.router';
 import ContractRouter from "./contract/contract.router";
 import MerchantRouter from "./merchant/merchant.router";
+import NFTRouter from "./nft/ntf.router"
 
 import {deployContract} from "./utils/deployNFTFactory";
 import {updateSessionIds} from "./utils/utils";
@@ -15,14 +16,14 @@ import {updateSessionIds} from "./utils/utils";
 
 dotenv.config();
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
-app.use("/wallet",WalletRouter)
-app.use("/contract",ContractRouter)
+app.use("/wallet", WalletRouter)
+app.use("/contract", ContractRouter)
 app.use("/merchant", MerchantRouter)
 app.use("/user", UserRouter)
+app.use("/nft", NFTRouter)
 
 async function main() {
     await deployContract();

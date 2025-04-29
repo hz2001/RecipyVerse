@@ -1,4 +1,4 @@
-import { Contract, BrowserProvider, JsonRpcSigner } from 'ethers';
+import {BrowserProvider, Contract, ethers, JsonRpcSigner} from 'ethers';
 import axiosInstance from './api';
 import walletService from './walletService';
 
@@ -77,30 +77,25 @@ class ContractServiceImpl implements ContractService {
    * 获取NFT工厂合约ABI
    */
   async getNFTFactoryABI(): Promise<any> {
-    return this.getABI(ContractType.NFT_FACTORY, '/contract/get_nft_factory_abi');
+    return this.getABI(ContractType.NFT_FACTORY, '/api/contract/get_nft_factory_abi');
   }
   
   /**
    * 获取NFT优惠券合约ABI
    */
   async getNFTCouponABI(): Promise<any> {
-    return this.getABI(ContractType.NFT_COUPON, '/contract/get_nft_coupon_abi');
+    return this.getABI(ContractType.NFT_COUPON, '/api/contract/get_nft_coupon_abi');
   }
   
   /**
    * 获取NFT交换合约ABI
    */
   async getNFTSwapABI(): Promise<any> {
-    return this.getABI(ContractType.NFT_SWAP, '/contract/get_nft_swap_abi');
+    return this.getABI(ContractType.NFT_SWAP, '/api/contract/get_nft_swap_abi');
   }
   
-  /**
-   * 创建合约实例
-   * @param contractType 合约类型
-   * @param address 合约地址
-   * @returns 合约实例或null
-   */
-  async createContract(contractType: ContractType, address: string): Promise<Contract | null> {
+
+  async createContract(): Promise<Contract | null> {
     try {
       // 确保钱包已连接
       if (!walletService.isConnected()) {
@@ -116,23 +111,9 @@ class ContractServiceImpl implements ContractService {
       const { signer } = result;
       
       // 根据合约类型获取ABI
-      let abi;
-      switch (contractType) {
-        case ContractType.NFT_FACTORY:
-          abi = await this.getNFTFactoryABI();
-          break;
-        case ContractType.NFT_COUPON:
-          abi = await this.getNFTCouponABI();
-          break;
-        case ContractType.NFT_SWAP:
-          abi = await this.getNFTSwapABI();
-          break;
-        default:
-          throw new Error(`Unknown contract type: ${contractType}`);
-      }
-      
-      // 创建合约实例
-      return new Contract(address, abi, signer);
+      const { address, abi } = await this.getNFTFactoryABI();
+
+      return new ethers.Contract(address, abi, signer);
     } catch (error) {
       console.error('Failed to create contract:', error);
       return null;

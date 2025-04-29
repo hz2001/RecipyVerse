@@ -127,10 +127,7 @@ const CreateCouponPage: React.FC = () => {
       // const { data: imageData } = await nftService.uploadImage(imageFormData);
       
       // 2. Create NFT collection using smart contract
-      const factoryContract = await contractService.createContract(
-        ContractType.NFT_FACTORY,
-        process.env.REACT_APP_FACTORY_ADDRESS!
-      );
+      const factoryContract = await contractService.createContract();
       
       if (!factoryContract) {
         throw new Error('Failed to create factory contract');
@@ -146,18 +143,17 @@ const CreateCouponPage: React.FC = () => {
         supply,
         expirationTimestamp,
         1, // CouponNFT type
-        '0x' // TODO: Get signature from backend
       );
 
       const receipt = await deployTx.wait();
-      const collectionAddress = receipt.logs[0].address;
+      const collectionAddress = receipt.logs[1].args[1];
 
       // 3. Create NFT record in database with new structure
       const nftData = {
         coupon_name: couponName,
         coupon_type: couponType,
-        coupon_image: imageData.url,
-        expires_at: expireDate,
+        coupon_image: "imageData.url",//TODO:
+        expires_at: expireDate,//TODO CHANGE TO TIMESTAMP
         total_supply: supply,
         creator_address: connectedWallet,
         contract_address: collectionAddress,
