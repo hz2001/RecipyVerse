@@ -32,33 +32,32 @@ contract NFTFactory {
         string memory symbol,
         uint256 maxSupply,
         uint256 expiration_date,
-        uint256 contractType,
-        bytes calldata signature
+        uint256 contractType
     ) external returns (address) {
         // 1) Recreate the exact 32-byte payload that was signed off-chain:
-        bytes32 payloadHash = keccak256(
-            abi.encodePacked(
-                msg.sender,
-                name,
-                symbol,
-                maxSupply,
-                expiration_date,
-                contractType,
-                block.chainid
-            )
-        );
+        // bytes32 payloadHash = keccak256(
+        //     abi.encodePacked(
+        //         msg.sender,
+        //         name,
+        //         symbol,
+        //         maxSupply,
+        //         expiration_date,
+        //         contractType,
+        //         block.chainid
+        //     )
+        // );
 
-        // 2) Manually apply the EIP-191 prefix:
-        bytes32 ethSignedHash = keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n32",
-                payloadHash
-            )
-        );
+        // // 2) Manually apply the EIP-191 prefix:
+        // bytes32 ethSignedHash = keccak256(
+        //     abi.encodePacked(
+        //         "\x19Ethereum Signed Message:\n32",
+        //         payloadHash
+        //     )
+        // );
 
-        // 3) Recover who signed it and require it to be `owner`
-        address signer = ethSignedHash.recover(signature);
-        require(signer == owner, "NFTFactory: unauthorized");
+        // // 3) Recover who signed it and require it to be `owner`
+        // address signer = ethSignedHash.recover(signature);
+        // require(signer == owner, "NFTFactory: unauthorized");
 
         // 4) Deploy the right contract
         address collectionAddress;
