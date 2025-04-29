@@ -12,7 +12,8 @@ Router.get('/getVerifyMessage', async (req, res) => {
 
 Router.get('/getRoleBySessionId', async (req, res) => {
   const sessionId = req.query.sessionId as string;
-  const role = await databaseService.getRoleBySessionId(sessionId);
+  const address = await databaseService.getAddressBySessionId(sessionId);
+  const role = await databaseService.getUserRole(address);
   res.json({ role });
 });
 

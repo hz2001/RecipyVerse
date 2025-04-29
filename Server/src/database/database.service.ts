@@ -1,5 +1,5 @@
 import {supabase} from "./database";
-import {Merchant, User, UserRole, Verification, VerifyMessage} from "./database.type";
+import {Merchant, NFT, User, UserRole, Verification, VerifyMessage} from "./database.type";
 
 export async function getVerifyMessage(address: string) {
     try {
@@ -21,23 +21,13 @@ export async function getVerifyMessage(address: string) {
     }
 }
 
-export async function getRoleBySessionId(sessionId: string) {
-    const {data, error} = await supabase
-        .from('verification')
+export async function getUserRole(address: string) {
+    const {data: user} = await supabase
+        .from('users')
         .select(`*`)
-        .eq('session_id', sessionId);
+        .eq('wallet_address', address);
+    return user && user.length > 0 ? user[0].role : UserRole.USER;
 
-    const verification = data && data.length > 0 ? data[0] as Verification : null;
-
-    if (verification) {
-        const address = verification.address;
-        const {data: user} = await supabase
-            .from('users')
-            .select(`*`)
-            .eq('wallet_address', address);
-        return user && user.length > 0 ? user[0].role : UserRole.USER;
-    }
-    return UserRole.USER;
 }
 
 export async function getAddressBySessionId(sessionId: string) {
@@ -45,7 +35,7 @@ export async function getAddressBySessionId(sessionId: string) {
         .from('verification')
         .select(`*`)
         .eq('session_id', sessionId);
-    return error ? null : data && data.length > 0 ? data[0].address : null;
+    return data && data.length > 0 ? data[0].address as string : "";
 }
 
 export async function updateVerifyMessage(address: string, message?: string, sessionId?: string, expireAt?: string) {
@@ -126,7 +116,7 @@ export async function updateUser(address: string, role: UserRole = UserRole.USER
     const user = data && data.length > 0 ? data[0] as User : null;
 
     if (user) {
-        role = role ? role : user.role;
+        role = (user.role != UserRole.USER) ? user.role : role;
     }
 
     let {error} = await supabase
@@ -160,57 +150,72 @@ export async function getISSessionExpired(sessionId: string) {
     return false;
 }
 
-export async function deleteBySessionId(sessionId: string) {
-    const {data: foundData, error} = await supabase
-        .from('verification')
-        .delete()
-        .eq('session_id', sessionId)
-        .select();
-    const user = foundData && foundData.length > 0 ? foundData[0] as User : null;
-    if (error) {
-        console.error('Error on find by session id:', error);
-        return {success: false, message: error.message};
+export async function deleteUser(address: string) {
+    const {error: userError} = await supabase
+    .from('users')
+    .delete()
+    .eq('wallet_address', address);
+    if (userError) {
+        console.error('Error on delete user:', userError);
+        return {success: false, message: userError.message};   
     }
-    
-    if (user) {
-        const {error} = await supabase
-            .from('verification')
-            .delete()
-            .eq('session_id', sessionId);
-        if (error) {
-            console.error('Error on delete by session id:', error);
-            return {success: false, message: error.message};       
-        }
+
+    const {error: verifyError} = await supabase
+    .from('verification')
+    .delete()
+    .eq('address', address);
+    if (verifyError) {
+        console.error('Error on delete verify:', verifyError);
+        return {success: false, message: verifyError.message};
     }
-    
     return {success: true, message: "Success"};
 }
 
-export async function getMerchantBySessionId(sessionId: string) {
-    const {data, error} = await supabase
-        .from('verification')
-        .select(`*`)
-        .eq('session_id', sessionId);
-    const verification = data && data.length > 0 ? data[0] as Verification : null;
-    if (verification) {
-        const address = verification.address;
+export async function getMerchant(address: string) {
         const {data: merchant} = await supabase
             .from('merchants')
             .select(`*`)
             .eq('wallet_address', address);
         return merchant && merchant.length > 0 ? merchant[0] as Merchant : null;
-    }
+    
+}
+
+export async function getNFTContractsByAddress(address: string) {
+    const {data, error} = await supabase
+        .from('nfts')
+        .select(`contract_address`)
+        .eq('creator_address', address);
+    return data && data.length > 0 ? data as NFT[] : []
+}
+
+export async function getNFTsByAddress(address: string) {
+    const {data, error} = await supabase
+        .from('nfts')
+        .select(`*`)
+        .eq('owner_address', address);
+    return data && data.length > 0 ? data as NFT[] : []
+}
+
+export async function getUserInfo(address: string) {
+    const {data, error} = await supabase
+        .from('users')
+        .select(`*`)
+        .eq('wallet_address', address);
+    return data && data.length > 0 ? data[0] as User : null;
 }
 
 export default {
     getVerifyMessage,
-    getRoleBySessionId,
+    getUserRole,
     getAddressBySessionId,
     getISSessionExpired,
     updateUser,
     uploadFile,
     updateMerchant,
     updateVerifyMessage,
-    deleteBySessionId,
-    getMerchantBySessionId
+    deleteUser,
+    getMerchant,
+    getNFTContractsByAddress,
+    getNFTsByAddress,
+    getUserInfo
 }

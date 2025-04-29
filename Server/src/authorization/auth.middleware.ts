@@ -7,7 +7,8 @@ export function checkRole(requiredRole?: string) {
         const sessionId = req.query?.sessionId;
         if (typeof sessionId !== "string" || !sessionId) return res.status(400).send("sessionId is required");
 
-        const role = await databaseService.getRoleBySessionId(sessionId);
+        const address = await databaseService.getAddressBySessionId(sessionId);
+        const role = await databaseService.getUserRole(address);
         const valid = await databaseService.getISSessionExpired(sessionId);
 
         if (!valid) return res.status(401).send("Session is not valid");
