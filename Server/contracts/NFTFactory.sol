@@ -25,7 +25,6 @@ contract NFTFactory {
      * @param maxSupply      cap on mintable tokens
      * @param expiration_date timestamp baked into the child contract
      * @param contractType   1 = CouponNFT, 2 = (future) MemberNFT, etc
-     * @param signature      signature by `owner` over the packed payload
      */
     function deployCollection(
         string memory name,

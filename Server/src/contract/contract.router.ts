@@ -6,7 +6,7 @@ import {checkRole} from "../authorization/auth.middleware";
 const Router = express.Router();
 
 
-Router.get('/get_nft_factory_abi', checkRole(), ContractService.getNFTFactoryContractAbi)
+Router.get('/get_nft_factory_abi', checkRole('merchant',true), ContractService.getNFTFactoryContractAbi)
 
 Router.get('/get_nft_coupon_abi', checkRole(), ContractService.getNFTCouponContractAbi)
 

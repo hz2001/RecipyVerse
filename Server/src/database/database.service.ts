@@ -180,10 +180,10 @@ export async function getMerchant(address: string) {
     
 }
 
-export async function getNFTContractsByAddress(address: string) {
+export async function getNFTsByCreator(address: string) {
     const {data, error} = await supabase
         .from('nfts')
-        .select(`contract_address`)
+        .select(`*`)
         .eq('creator_address', address);
     return data && data.length > 0 ? data as NFT[] : []
 }
@@ -215,7 +215,7 @@ export default {
     updateVerifyMessage,
     deleteUser,
     getMerchant,
-    getNFTContractsByAddress,
+    getNFTsByCreator,
     getNFTsByAddress,
     getUserInfo
 }

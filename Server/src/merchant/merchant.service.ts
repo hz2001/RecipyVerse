@@ -1,5 +1,5 @@
 import {Request, Response} from 'express'
-import databaseService from "../database/database.service";
+import databaseService, {getNFTsByCreator} from "../database/database.service";
 import {UserRole} from "../database/database.type";
 
 
@@ -25,7 +25,7 @@ export async function uploadQualification(req: Request, res: Response) {
 export async function getAllContracts(req: Request, res: Response) {
     const sessionId = req.query?.sessionId as string;
     const address = await databaseService.getAddressBySessionId(sessionId);
-    const contracts = await databaseService.getNFTContractsByAddress(address);
+    const contracts = await databaseService.getNFTsByCreator(address);
     return res.status(200).send(contracts);
 }
 

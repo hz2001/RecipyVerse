@@ -27,7 +27,7 @@ app.use("/user", UserRouter)
 async function main() {
     await deployContract();
 
-    setInterval(updateSessionIds, 1000 * 60 * 5)
+    setInterval(updateSessionIds, 1000 * 60 * 15)
 
     try {
         const PORT = process.env.PORT || 3000;
