@@ -3,29 +3,28 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import userService, { UserRole, User } from '../services/userService';
 import NftCard from '../components/NftCard';
-import nftService, { NFT } from '../services/nftService';
-import { UserData } from '../data/userDataService';
+import nftService, { CouponNFT } from '../services/nftService';
 
 // NFT卡片适配器
-const adaptNftForCard = (nft: NFT): any => ({
+const adaptNftForCard = (nft: CouponNFT): any => ({
   ...nft,
-  coupon_name: nft.coupon_name || nft.name || 'Unnamed NFT'
+  coupon_name: nft.coupon_name || 'Unnamed NFT'
 });
 
 const UserProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { connectedWallet, userRole, updateUserData, userData, connectWallet } = useWallet();
+  const { connectedWallet, userRole, connectWallet } = useWallet();
   
   const [userInfo, setUserInfo] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // NFT数据
-  const [nfts, setNfts] = useState<NFT[]>([]);
+  const [nfts, setNfts] = useState<CouponNFT[]>([]);
   
   // NFT详情模态框
   const [showNftDetailModal, setShowNftDetailModal] = useState(false);
-  const [selectedNftForDetail, setSelectedNftForDetail] = useState<NFT | null>(null);
+  const [selectedNftForDetail, setSelectedNftForDetail] = useState<CouponNFT | null>(null);
 
   // 检查是否已登录
   useEffect(() => {
@@ -45,7 +44,6 @@ const UserProfilePage: React.FC = () => {
       try {
         setIsLoading(true);
         if (connectedWallet) {
-          await updateUserData();
           
           // 从userService获取用户信息，避免类型不匹配
           const user = await userService.getUserInfo();
@@ -54,7 +52,7 @@ const UserProfilePage: React.FC = () => {
           }
           
           // 获取NFT数据
-          await fetchNfts(connectedWallet);
+          await fetchNfts();
         }
         setIsLoading(false);
       } catch (err) {
@@ -67,30 +65,21 @@ const UserProfilePage: React.FC = () => {
     };
     
     fetchData();
-  }, [connectedWallet, updateUserData, userData, navigate]);
+  }, [connectedWallet, navigate]);
 
   // 获取用户拥有的NFT
-  const fetchNfts = async (address: string) => {
-    if (!address) return;
-    
+  const fetchNfts = async () => {
     try {
-      console.log('获取用户拥有的NFT，钱包地址:', address);
-      
-      // 使用nftService获取用户拥有的NFT
-      const ownedNfts = await nftService.getUserOwnedNFTs(address);
-      console.log('获取到用户拥有的NFT:', ownedNfts);
-      // 确保nfts始终是一个数组
-      setNfts(Array.isArray(ownedNfts) ? ownedNfts : []);
-    } catch (err) {
-      console.error('获取NFT失败:', err);
-      setError('Failed to load your NFTs. Please try again later.');
-      // 发生错误时设置为空数组
-      setNfts([]);
+      const ownedNfts = await nftService.getUserOwnedNFTs();
+      setNfts(ownedNfts);
+    } catch (error) {
+      console.error('获取NFT失败:', error);
+      setError('Failed to load NFTs');
     }
   };
 
   // 处理NFT详情模态框
-  const handleOpenNftDetail = async (nft: NFT) => {
+  const handleOpenNftDetail = async (nft: CouponNFT) => {
     try {
       // 获取完整的NFT详情
       if (nft.id) {
@@ -169,7 +158,7 @@ const UserProfilePage: React.FC = () => {
         <h2 className="text-xl font-semibold text-gray-700 mb-4">Your NFTs</h2>
         <div className="bg-gray-50 p-6 rounded-lg text-center">
           <h3 className="text-lg font-medium text-gray-600 mb-2">Owned NFTs</h3>
-          <p className="text-3xl font-bold text-amber-600">{nfts.length || userData?.NFThold?.length || 0}</p>
+          <p className="text-3xl font-bold text-amber-600">{nfts.length}</p>
         </div>
       </div>
       
@@ -211,8 +200,8 @@ const UserProfilePage: React.FC = () => {
               <img
                 src={selectedNftForDetail.coupon_image 
                   ? `/images/${selectedNftForDetail.coupon_image}` 
-                  : selectedNftForDetail.imageUrl || '/placeholder-images/nft-default.jpg'}
-                alt={selectedNftForDetail.coupon_name || selectedNftForDetail.name || 'NFT'}
+                  : '/placeholder-images/nft-default.jpg'}
+                alt={selectedNftForDetail.coupon_name || 'NFT'}
                 className="w-full h-full object-cover"
               />
               <button 
@@ -228,7 +217,7 @@ const UserProfilePage: React.FC = () => {
             {/* 下方详情区域 */}
             <div className="p-6">
               <h2 className="text-2xl font-bold mb-2 text-gray-800">
-                {selectedNftForDetail.coupon_name || selectedNftForDetail.name || 'NFT'}
+                {selectedNftForDetail.coupon_name || 'NFT'}
               </h2>
               
               <div className="mb-4 flex items-center">
@@ -247,8 +236,7 @@ const UserProfilePage: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-semibold text-gray-600 mb-1">Merchant</h3>
                     <p className="text-gray-800">
-                      {selectedNftForDetail.details?.merchantName || 
-                       selectedNftForDetail.merchantName || 
+                      {selectedNftForDetail.merchant_name || 
                        'Unknown Merchant'}
                     </p>
                   </div>
@@ -257,7 +245,7 @@ const UserProfilePage: React.FC = () => {
                     <p className="text-gray-800">
                       {selectedNftForDetail.expires_at 
                         ? new Date(selectedNftForDetail.expires_at).toLocaleDateString() 
-                        : selectedNftForDetail.expirationDate || 'N/A'}
+                        : 'N/A'}
                     </p>
                   </div>
                   <div>
@@ -275,8 +263,7 @@ const UserProfilePage: React.FC = () => {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2">Description</h3>
                 <p className="text-gray-700">
-                  {selectedNftForDetail.details?.description || 
-                   selectedNftForDetail.description || 
+                  {selectedNftForDetail.description || 
                    'No description available.'}
                 </p>
               </div>

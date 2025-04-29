@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import walletService from '../services/walletService';
 import userService, { UserRole } from '../services/userService';
 import { UserData, fetchUserDataByWallet } from '../data/userDataService';
+import { merchantService } from '@/services';
 
 interface WalletContextType {
   connectedWallet: string | null;
@@ -54,11 +55,17 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         const userInfo = await userService.getUserInfo();
         if (userInfo) {
           setUserRole(userInfo.role);
+        } else {
+          // 如果无法获取用户信息，尝试从 localStorage 获取角色
+          const storedRole = localStorage.getItem('userRole');
+          if (storedRole) {
+            setUserRole(storedRole as UserRole);
+          }
         }
 
         // 如果是商家，检查验证状态
-        if (userInfo?.role === UserRole.MERCHANT) {
-          const merchantInfo = await userService.getMerchantInfo();
+        if (userInfo?.role === UserRole.MERCHANT || localStorage.getItem('isMerchant') === 'true') {
+          const merchantInfo = await merchantService.getMerchantInfo();
           setIsVerifiedMerchant(merchantInfo?.is_verified || false);
         }
 

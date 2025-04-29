@@ -57,9 +57,9 @@ const MerchantProfilePage: React.FC = () => {
       try {
         setIsLoading(true);
         if (connectedWallet) {
-          await updateUserData();
-          // Type casting to avoid type errors
-          setUserInfo(userData as unknown as User);
+          // 获取用户信息
+          const userInfo = await userService.getUserInfo();
+          setUserInfo(userInfo);
           
           // 获取NFT数据
           await fetchNfts(connectedWallet);
@@ -67,28 +67,18 @@ const MerchantProfilePage: React.FC = () => {
           
           // 获取商家信息
           try {
-            // 检查sessionId是否存在且有效
-            const sessionId = document.cookie.split(';').find(row => row.trim().startsWith('sessionId='));
-            
-            if (sessionId) {
-              // 使用独立函数获取商家信息，避免类型冲突
-              await fetchMerchantInfo();
-              
-              // 获取商家铸造的NFT合约
-              const contracts = await merchantService.getMyNFTContracts();
-              console.log('商家NFT合约:', contracts);
-            } else {
-              console.error('No active session found');
-              setError('No active session. Please login again.');
-              setTimeout(() => navigate('/'), 3000);
+            const merchantData = await merchantService.getMerchantInfo();
+            if (merchantData) {
+              setMerchantInfo(merchantData);
             }
+            
+            // 获取商家铸造的NFT合约
+            const contracts = await merchantService.getMyNFTContracts();
+            console.log('商家NFT合约:', contracts);
           } catch (merchantErr) {
             console.error('获取商家信息失败:', merchantErr);
-            // 获取商家信息失败时，不应显示商家专有内容
             setMerchantInfo(null);
-            // 获取商家信息失败时重定向到用户页面
             setError('Failed to load merchant information. Please try again later.');
-            setTimeout(() => navigate('/user_profile'), 3000);
           }
         }
         setIsLoading(false);
@@ -96,45 +86,11 @@ const MerchantProfilePage: React.FC = () => {
         console.error('Error loading user data:', err);
         setError('Failed to load user data. Please try again later.');
         setIsLoading(false);
-        // 3秒后重定向到首页
-        setTimeout(() => navigate('/'), 3000);
       }
     };
-    
-    // 单独的商家信息获取函数，确保类型一致性
-    const fetchMerchantInfo = async () => {
-      try {
-        // 使用merchantService获取商家信息
-        const merchantData = await merchantService.getMerchantInfo();
-        
-        if (merchantData) {
-          setMerchantInfo({
-            ...merchantData,
-            id: Number(merchantData.id),
-            is_verified: String(merchantData.is_verified)
-          });
-          console.log('Merchant info loaded successfully:', merchantData);
-        } else {
-          // 无商家数据时创建默认数据
-          const defaultMerchant: Merchant = {
-            id: 0,
-            wallet_address: connectedWallet || '',
-            created_at: new Date().toISOString(),
-            is_verified: userData?.isverified ? "true" : "false",
-            merchant_name: userData?.merchantName || '未命名商家',
-            merchant_address: userData?.merchantAddress || '未提供地址'
-          };
-          setMerchantInfo(defaultMerchant);
-          console.log('Using default merchant info:', defaultMerchant);
-        }
-      } catch (error) {
-        console.error('Error fetching merchant info:', error);
-        throw error;
-      }
-    };
-    
+
     fetchData();
-  }, [connectedWallet, updateUserData, userData, navigate]);
+  }, [connectedWallet]); // 只依赖connectedWallet
 
   // 获取用户拥有的NFT
   const fetchNfts = async (address: string) => {
@@ -245,14 +201,10 @@ const MerchantProfilePage: React.FC = () => {
       
       // 重新加载商家信息
       if (connectedWallet) {
-        const merchantData = await userService.getMerchantInfo();
+        const merchantData = await merchantService.getMerchantInfo();
         if (merchantData) {
           // 转换为merchantService.Merchant类型
-          setMerchantInfo({
-            ...merchantData,
-            id: Number(merchantData.id),
-            is_verified: String(merchantData.is_verified)
-          });
+          setMerchantInfo(merchantData);
         }
       }
     } catch (error) {

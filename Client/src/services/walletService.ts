@@ -86,6 +86,8 @@ class WalletServiceImpl implements WalletService {
         });
         const sessionId = await result.text();
         document.cookie = `sessionId=${sessionId}; path=/; max-age=3600`;
+        localStorage.setItem('sessionId', sessionId);
+        localStorage.setItem('walletAddress', address);
         return sessionId;
     }catch (e) {
         console.log(e);

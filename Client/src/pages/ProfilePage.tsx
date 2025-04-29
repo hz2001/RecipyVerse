@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import MerchantVerificationInputModal from '../components/MerchantVerificationInputModal';
-import { UserData } from '../data/userDataService';
 import merchantService from '../services/merchantService';
+import { UserRole } from '../services/userService';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();

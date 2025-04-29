@@ -7,7 +7,7 @@ export interface Merchant {
   id: number;
   created_at: string;
   wallet_address: string;
-  is_verified: string;
+  is_verified: boolean;
   merchant_name: string;
   merchant_address: string;
 }
@@ -40,13 +40,11 @@ class MerchantServiceImpl implements MerchantService {
       formData.append('merchantName', merchantName);
       formData.append('merchantAddress', merchantAddress);
       
-      const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId=')).split('=')[1];
       // 发送上传请求
-      const response = await axiosInstance.post(`/api/merchant/upload_qualification?sessionId=${sessionId}`, formData, {
+      const response = await axiosInstance.post('/api/merchant/upload_qualification', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
-
       });
       
       return response.status === 200;
@@ -61,11 +59,9 @@ class MerchantServiceImpl implements MerchantService {
    */
   async getMyNFTContracts(): Promise<any[]> {
     try {
-      const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
-      const response = await axiosInstance.get(`/api/merchant/my_nft_contracts?sessionId=${sessionId}`);
+      const response = await axiosInstance.get(`/api/merchant/my_nft_contracts`);
       
       if (response.status === 200) {
-        console.log(response.data);
         return response.data || [];
       }
       
@@ -81,8 +77,7 @@ class MerchantServiceImpl implements MerchantService {
    */
   async getMerchantInfo(): Promise<Merchant> {
     try {
-      const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
-      const response = await axiosInstance.get(`/api/merchant/get_merchant_detail?sessionId=${sessionId}`);
+      const response = await axiosInstance.get(`/api/merchant/get_merchant_detail`);
       
       if (response.status === 200) {
         const rawData = response.data;

@@ -16,7 +16,7 @@ const axiosInstance: AxiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config: AxiosRequestConfig) => {
     // 从localStorage获取sessionId
-    const sessionId = localStorage.getItem('sessionId');
+    const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
     
     // 如果存在sessionId，将其添加到所有请求的查询参数中
     if (sessionId && config.params) {

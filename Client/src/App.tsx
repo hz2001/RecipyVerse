@@ -3,7 +3,6 @@ import './App.css'
 import Navbar from './components/Navbar'
 import SwapMarket from './pages/SwapMarket'
 import ProfilePage from './pages/ProfilePage'
-import MyRecipesPage from './pages/MyRecipesPage'
 import NftDetailPage from './pages/NftDetailPage'
 import VerificationManagementPage from './pages/VerificationManagementPage'
 import UserProfilePage from './pages/UserProfilePage'
@@ -26,7 +25,6 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/user_profile" element={<UserProfilePage />} />
               <Route path="/merchant_profile" element={<MerchantProfilePage />} />
-              <Route path="/my-recipes" element={<MyRecipesPage />} />
               <Route path="/nft/:nftId" element={<NftDetailPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/admin/verification" element={<VerificationManagementPage />} />
