@@ -71,9 +71,15 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
         // 获取用户数据
         if (address) {
-          const userData = await fetchUserDataByWallet(address);
+          const userData = await userService.getUserInfo();
           if (userData) {
-            setUserData(userData);
+            setUserData({
+              userWalletID: userData.wallet_address,
+              NFThold: [],
+              NFTcreated: [],
+              isMerchant: userData.role === UserRole.MERCHANT,
+              isverified: false
+            });
           }
         }
       }
@@ -85,9 +91,15 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   // 更新用户数据
   const updateUserData = async () => {
     if (connectedWallet) {
-      const userData = await fetchUserDataByWallet(connectedWallet);
+      const userData = await userService.getUserInfo();
       if (userData) {
-        setUserData(userData);
+        setUserData({
+          userWalletID: userData.wallet_address,
+          NFThold: [],
+          NFTcreated: [],
+          isMerchant: userData.role === UserRole.MERCHANT,
+          isverified: false
+        });
       }
     }
   };
