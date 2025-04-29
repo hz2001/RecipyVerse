@@ -44,7 +44,7 @@ const GenerateCouponContractPage = () => {
 }
 
 async function deployContract(name: string, symbol: string, maxSupply: BigNumberish, expirationDate: BigNumberish) {
-    const res = await fetch("/api/contract/get_abi");
+    const res = await fetch("/contract/get_abi");
     const {abi, address} = await res.json();
 
     const provider = new ethers.BrowserProvider(window.ethereum);
@@ -61,7 +61,7 @@ async function deployContract(name: string, symbol: string, maxSupply: BigNumber
 }
 
 async function getContractAddress() {
-    const res = await fetch("/api/contract/get_abi");
+    const res = await fetch("/contract/get_abi");
     const {abi, address} = await res.json();
 
     const provider = new ethers.BrowserProvider(window.ethereum);

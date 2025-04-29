@@ -5,6 +5,8 @@ import nftService from '../services/nftService';
 import contractService from '../services/contractService';
 import { ContractType } from '../services/contractService';
 import merchantService from '../services/merchantService';
+import { BigNumberish } from 'ethers';
+import { ethers } from 'ethers';
 
 // Basic validation for wallet IDs
 const WALLET_ID_REGEX = /^0x[a-fA-F0-9]{40}$/;
@@ -106,6 +108,8 @@ const CreateCouponPage: React.FC = () => {
     return true;
   };
 
+  
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isLoading || !validateForm() || !connectedWallet) {
@@ -118,9 +122,9 @@ const CreateCouponPage: React.FC = () => {
 
     try {
       // 1. Upload image to backend and get image URL
-      const imageFormData = new FormData();
-      imageFormData.append('image', image!);
-      const { data: imageData } = await nftService.uploadImage(imageFormData);
+      // const imageFormData = new FormData();
+      // imageFormData.append('image', image!);
+      // const { data: imageData } = await nftService.uploadImage(imageFormData);
       
       // 2. Create NFT collection using smart contract
       const factoryContract = await contractService.createContract(
@@ -148,25 +152,26 @@ const CreateCouponPage: React.FC = () => {
       const receipt = await deployTx.wait();
       const collectionAddress = receipt.logs[0].address;
 
-      // 3. Create NFT records in database
+      // 3. Create NFT record in database with new structure
       const nftData = {
         coupon_name: couponName,
         coupon_type: couponType,
         coupon_image: imageData.url,
-        benefits: benefit,
         expires_at: expireDate,
         total_supply: supply,
         creator_address: connectedWallet,
-        description: otherInfo,
-        owner_addresses: nftOwners.split(',').reduce((acc, owner) => {
-          if (owner.trim() && WALLET_ID_REGEX.test(owner)) {
-            acc[owner.trim()] = 'owner';
-          }
-          return acc;
-        }, {} as Record<string, string>)
+        contract_address: collectionAddress,
+        owner_address: null,
+        is_used: false,
+        details: {
+          coupon_name: couponName,
+          coupon_type: couponType,
+          benefits: benefit,
+          other_info: otherInfo || undefined
+        }
       };
 
-      await nftService.createNFT(nftData);
+      await nftService.createCouponNFT(nftData);
 
       setSuccess('Coupon NFT created successfully!');
       setTimeout(() => navigate('/profile'), 1500);

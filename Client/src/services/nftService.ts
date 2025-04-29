@@ -62,20 +62,28 @@ const nftService = {
         return [];
       }
 
-      // 调用API获取用户拥有的NFT
       const response = await axiosInstance.get(`/api/user/get_nfts`);
 
-      if (response.status === 200 && response.data) {
-        return response.data;
-      }
-
-      return [];
-    } catch (error) {
-      console.error('获取用户拥有的NFT失败:', error);
+      const data = response.data;
       
-      // 由于API可能尚未实现，返回空数组
-      console.warn('API可能尚未实现，返回空数组');
-      return [];
+      // Transform the response data to match CouponNFT structure
+      return data.map((nft: any) => ({
+        id: nft.id,
+        coupon_name: nft.coupon_name,
+        coupon_type: nft.coupon_type,
+        coupon_image: nft.coupon_image,
+        total_supply: nft.total_supply,
+        expires_at: nft.expires_at,
+        contract_address: nft.contract_address,
+        creator_address: nft.creator_address,
+        description: JSON.stringify(nft.details),
+        is_used: nft.is_used,
+        created_at: nft.created_at,
+        owner_address: nft.owner_address
+      }));
+    } catch (error) {
+      console.error('Error fetching user owned NFTs:', error);
+      throw error;
     }
   },
 
@@ -118,38 +126,19 @@ const nftService = {
         return null;
       }
 
-      // 调用API获取NFT详情
-      const response = await axiosInstance.get(`/nft/details/${nftId}`);
+      const response = await axiosInstance.get(`/api/user/get_nft_detail/${nftId}`);
 
       if (response.status === 200 && response.data) {
-        console.log(response.data);
-        const couponNFT: CouponNFT = {
-          id: response.data.id,
-          coupon_name: response.data.coupon_name,
-          coupon_type: response.data.coupon_type,
-          coupon_image: response.data.coupon_image,
-          expires_at: response.data.expires_at,
-          total_supply: response.data.total_supply,
-          creator_address: response.data.creator_address,
-          contract_address: response.data.contract_address,
-          owner_address: response.data.owner_address,
-          is_used: response.data.is_used,
-          description: response.data.details,
-          created_at: response.data.created_at,
-          swapping: response.data.swapping,
-          merchant_name: response.data.merchant_name,
-          token_id: response.data.token_id,
+        const nftData = response.data;
+        return {
+          ...nftData,
+          description: nftData.details?.description || JSON.stringify(nftData.details || {})
         };
-
-        return couponNFT;
       }
 
       return null;
     } catch (error) {
       console.error('获取NFT详情失败:', error);
-      
-      // 由于API可能尚未实现，返回null
-      console.warn('API可能尚未实现，返回null');
       return null;
     }
   },
@@ -173,6 +162,7 @@ const nftService = {
       });
 
       if (response.status === 200 && response.data) {
+        console.log(response.data);
         return { data: response.data };
       }
 
