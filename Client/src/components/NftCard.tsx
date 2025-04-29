@@ -1,38 +1,9 @@
 import React from 'react';
-// Removed MUI Typography import
-
-// 更新的NFT接口，匹配数据库结构
-interface Nft {
-  id: string;
-  coupon_name: string;
-  coupon_type: string;
-  coupon_image?: string;
-  creator_address?: string;
-  owner_address?: string;
-  expires_at: string;
-  details?: {
-    merchantName?: string;
-    description?: string;
-    benefits?: string;
-    supply?: number;
-    otherInfo?: string;
-  };
-  total_supply?: number;
-  blockchain_status?: string;
-  created_at?: string;
-  // 支持旧的字段结构以保持兼容性
-  name?: string;
-  imageUrl?: string;
-  merchantName?: string;
-  expirationDate?: string;
-  benefits?: string[];
-  ownerId?: string;
-  description?: string;
-}
+import { CouponNFT } from '../services/nftService';
 
 interface NftCardProps {
-  nft: Nft;
-  onClick?: (nft: Nft) => void;
+  nft: CouponNFT;
+  onClick?: (nft: CouponNFT) => void;
   isSelected?: boolean;
 }
 
@@ -53,12 +24,11 @@ const NftCard: React.FC<NftCardProps> = ({ nft, onClick, isSelected }) => {
   `;
 
   // 兼容新旧数据结构
-  const name = nft.coupon_name || nft.name || 'Unnamed NFT';
-  const imageUrl = nft.coupon_image ? `/images/${nft.coupon_image}` : nft.imageUrl;
-  const merchantName = nft.details?.merchantName || nft.merchantName || 'Unknown Merchant';
-  const expirationDate = nft.expires_at ? new Date(nft.expires_at).toLocaleDateString() : 
-                         (nft.expirationDate || 'N/A');
-  const description = nft.details?.description || nft.details?.benefits || nft.description || '';
+  const name = nft.coupon_name || 'Unnamed NFT';
+  const imageUrl = nft.coupon_image ? `/images/${nft.coupon_image}` : '';
+  const merchantName = nft.merchant_name || 'Unknown Merchant';
+  const expirationDate = nft.expires_at ? new Date(nft.expires_at).toLocaleDateString() : 'N/A';
+  const description = nft.description || '';
   const couponType = nft.coupon_type || '';
   const totalSupply = nft.total_supply || 0;
 

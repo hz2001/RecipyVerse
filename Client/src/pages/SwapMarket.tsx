@@ -3,48 +3,24 @@ import { useLocation, useNavigate } from 'react-router-dom'; // Import hooks
 import { Button, CircularProgress, Modal, TextField, Pagination, FormControlLabel, Checkbox } from '@mui/material';
 import NftCard from '../components/NftCard'; 
 import { useWallet } from '../contexts/WalletContext';
-import { supabase } from '../utils/supabaseClient';
 import { Link } from 'react-router-dom';
+import nftService, { CouponNFT } from '../services/nftService';
+import axiosInstance from '../services/api';
+import { AxiosResponse } from 'axios';
 
-// 重命名以避免与导入的NftCard期望的Nft接口冲突
-interface SwapNft {
-  id: string;
-  name?: string;
-  imageUrl?: string;
-  merchantName?: string;
-  expirationDate?: string;
-  benefits?: string[];
-  ownerId?: string; 
-  description?: string;
-  contractAddress?: string;
-  tokenId?: string;
-  // 添加NftCard组件所需字段以便转换
-  coupon_name?: string;
-  coupon_type?: string;
-  coupon_image?: string;
-  expires_at?: string;
-  creator_address?: string;
-  owner_address?: string | any; // 兼容字符串和JSON对象格式
-  details?: any;
-  total_supply?: number;
-  // 添加swapping字段
+// 使用 CouponNFT 作为基础接口
+export interface SwapNft extends CouponNFT {
+  // 添加交换相关的字段
   swapping?: any; // 可以是布尔值、对象或字符串
-}
-
-// Interface for Supabase NFT data
-interface SupabaseNft {
-  id: string;
-  token_id?: string;
-  created_at: string;
-  owner_address: string | any; // 可以是字符串或JSON对象
-  swapping?: any; // 可以是布尔值、对象或字符串，如 {"pending_1":[id1,id2],"pending_2":[id3]}
-  expires_at: string;
-  creator_address: string;
-  details?: any; // JSON格式的NFT详情
-  coupon_name: string;
-  coupon_type?: string;
-  coupon_image?: string;
-  total_supply?: number;
+  // 添加 NftCard 组件所需的额外字段
+  name?: string;
+  merchantName?: string;
+  imageUrl?: string;
+  ownerId?: string;
+  details?: any;
+  // 添加其他缺失的字段
+  expirationDate?: string;
+  tokenId?: string;
 }
 
 function SwapMarket() {
@@ -103,159 +79,45 @@ function SwapMarket() {
     loadMarketNFTs();
   }, [connectedWallet]);
 
-  // Convert Supabase NFT to app NFT format
-  const convertSupabaseNftToAppNft = (nft: SupabaseNft): SwapNft => {
-    // Parse the detail JSON if it's a string
-    const detail = typeof nft.details === 'string' 
-      ? JSON.parse(nft.details) 
-      : nft.details;
-      
-    return {
-      id: nft.id,
-      name: detail?.name || `NFT #${nft.token_id}`,
-      description: detail?.description || '',
-      imageUrl: detail?.imageUrl || '/placeholder-images/nft-default.jpg',
-      merchantName: detail?.merchantName || '',
-      expirationDate: nft.expires_at || '',
-      benefits: detail?.benefits || [],
-      ownerId: nft.owner_address,
-      contractAddress: detail?.contractAddress || '',
-      tokenId: nft.token_id,
-      coupon_name: nft.coupon_name,
-      coupon_type: nft.coupon_type,
-      coupon_image: nft.coupon_image,
-      expires_at: nft.expires_at,
-      creator_address: nft.creator_address,
-      owner_address: nft.owner_address,
-      details: detail,
-      total_supply: nft.total_supply,
-      swapping: nft.swapping
-    };
-  };
-
+  // Load market NFTs
   const loadMarketNFTs = async () => {
     setIsLoadingMarket(true);
     try {
-      console.log('加载市场上可用的NFT...');
+      console.log('Loading available NFTs from the market...');
       
-      // 获取所有NFT
-      const { data, error } = await supabase
-        .from('nfts')
-        .select('*');
-        
-      if (error) {
-        console.error("获取NFT数据失败:", error);
+      // 调用API获取所有NFT
+      const response = await axiosInstance.get('/nft/market');
+      
+      if (response.status !== 200) {
+        console.log('No NFTs found');
         setMarketNFTs([]);
         setTotalPages(1);
         return;
       }
       
-      if (!data || data.length === 0) {
-        console.log('未找到任何NFT');
-        setMarketNFTs([]);
-        setTotalPages(1);
-        return;
-      }
-      
-      console.log('获取到的NFT总数:', data.length);
-      
-      // 筛选出在市场上交换的NFT
-      const marketAvailableNfts = data.filter(nft => {
-        // 检查swapping状态
-        // 新的检查方法：检查swapping是否为对象，且包含至少一个非空数组
-        if (typeof nft.swapping === 'object' && nft.swapping !== null) {
-          return Object.values(nft.swapping).some(value => 
-            Array.isArray(value) && value.length > 0);
-        }
-        
-        // 向后兼容：检查旧格式的swapping (布尔值或字符串)
-        if (nft.swapping === true) {
-          return true;
-        }
-        
-        // 向后兼容：检查旧格式的JSON对象
-        if (typeof nft.swapping === 'string' && nft.swapping.includes('{')) {
-          try {
-            const swappingObj = JSON.parse(nft.swapping);
-            if (typeof swappingObj === 'object') {
-              return Object.values(swappingObj).some(status => 
-                status === true || status === "true");
-            }
-          } catch (err) {
-            console.error('解析swapping JSON字符串失败:', err);
+      const nfts = response.data.map((nft: CouponNFT) => {
+        const benefits = Array.isArray(nft.benefits) ? nft.benefits : [nft.benefits || ''];
+        return {
+          ...nft,
+          benefits,
+          name: nft.coupon_name || `NFT #${nft.id}`,
+          merchantName: nft.merchant_name || 'Unknown Merchant',
+          imageUrl: nft.coupon_image || '/placeholder-images/nft-default.jpg',
+          ownerId: nft.owner_addresses,
+          expirationDate: nft.expires_at || '',
+          tokenId: nft.token_id || nft.id.toString(),
+          details: {
+            merchantName: nft.merchant_name,
+            description: nft.description,
+            benefits
           }
-        }
-        
-        return false;
+        } as SwapNft;
       });
       
-      console.log('可交换的NFT数量:', marketAvailableNfts.length);
-      
-      // 过滤掉当前用户拥有的NFT
-      let filteredNfts = marketAvailableNfts.filter(nft => {
-        // 检查字符串类型的owner_address
-        if (typeof nft.owner_address === 'string') {
-          return nft.owner_address !== connectedWallet;
-        }
-        
-        // 检查JSON对象类型的owner_address
-        if (typeof nft.owner_address === 'object' && nft.owner_address !== null) {
-          return !Object.values(nft.owner_address).includes(connectedWallet);
-        }
-        
-        return true; // 其他情况保留
-      });
-      
-      // 检查是否只显示匹配的NFT（接受用户NFT的）
-      if (showOnlyMatches && connectedWallet) {
-        // 获取用户拥有的NFT ID列表
-        const userNftIds = await getUserNFTIds();
-        
-        // 只保留那些明确接受用户NFT的帖子
-        filteredNfts = filteredNfts.filter(nft => {
-          if (typeof nft.swapping === 'object' && nft.swapping !== null) {
-            // 检查所有的desired数组，看是否包含用户的NFT
-            return Object.values(nft.swapping).some(desiredIds => {
-              return Array.isArray(desiredIds) && 
-                     desiredIds.some(id => userNftIds.includes(id));
-            });
-          }
-          return false;
-        });
-      }
-      
-      // 应用搜索过滤
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        filteredNfts = filteredNfts.filter(nft => {
-          const details = typeof nft.details === 'string' 
-            ? JSON.parse(nft.details) 
-            : nft.details || {};
-            
-          const matchesName = (nft.coupon_name || details?.name || '').toLowerCase().includes(query);
-          const matchesMerchant = (details?.merchantName || '').toLowerCase().includes(query);
-          const matchesType = (nft.coupon_type || '').toLowerCase().includes(query);
-          const matchesDescription = (details?.description || '').toLowerCase().includes(query);
-          
-          return matchesName || matchesMerchant || matchesType || matchesDescription;
-        });
-      }
-      
-      // 计算总页数
-      const totalItems = filteredNfts.length;
-      const calculatedTotalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-      setTotalPages(calculatedTotalPages);
-      
-      // 应用分页
-      const startIndex = (page - 1) * itemsPerPage;
-      const paginatedNfts = filteredNfts.slice(startIndex, startIndex + itemsPerPage);
-      
-      // 转换为应用格式的NFT
-      const marketNfts = paginatedNfts.map(convertSupabaseNftToAppNft);
-      setMarketNFTs(marketNfts);
-      console.log("加载市场NFT完成:", marketNfts.length);
+      setMarketNFTs(nfts);
+      setTotalPages(Math.ceil(nfts.length / itemsPerPage));
     } catch (error) {
-      console.error("加载市场NFT时发生错误:", error);
+      console.error("Error loading market NFTs:", error);
       setMarketNFTs([]);
       setTotalPages(1);
     } finally {
@@ -263,45 +125,20 @@ function SwapMarket() {
     }
   };
 
-  // 辅助函数：获取用户拥有的NFT ID列表
+  // 获取用户NFT ID列表
   const getUserNFTIds = async () => {
     if (!connectedWallet) return [];
     
     try {
-      const { data: allNfts, error } = await supabase
-        .from('nfts')
-        .select('id, owner_address');
-        
-      if (error) {
-        console.error("获取用户NFT ID失败:", error);
-        return [];
-      }
-      
-      // 筛选用户拥有的NFT ID
-      const userOwnedNftIds = allNfts
-        .filter(nft => {
-          let isOwned = false;
-          
-          // 检查字符串类型的owner_address
-          if (typeof nft.owner_address === 'string') {
-            isOwned = nft.owner_address === connectedWallet;
-          }
-          // 检查JSON对象类型的owner_address
-          else if (typeof nft.owner_address === 'object' && nft.owner_address !== null) {
-            isOwned = Object.values(nft.owner_address).includes(connectedWallet);
-          }
-          
-          return isOwned;
-        })
-        .map(nft => nft.id);
-      
-      return userOwnedNftIds;
+      const userNFTs = await nftService.getUserOwnedNFTs();
+      return userNFTs.map(nft => nft.id);
     } catch (error) {
-      console.error("获取用户NFT ID失败:", error);
+      console.error("Failed to get user NFT IDs:", error);
       return [];
     }
   };
 
+  // Load user NFTs
   const loadUserNFTs = async () => {
     if (!connectedWallet) {
       setUserNFTs([]);
@@ -310,153 +147,28 @@ function SwapMarket() {
     
     setIsLoadingUserNFTs(true);
     try {
-      console.log('加载用户拥有的NFT, 钱包地址:', connectedWallet);
-      
-      // 获取所有NFT
-      const { data: allNfts, error: allError } = await supabase
-        .from('nfts')
-        .select('*');
-        
-      if (allError) {
-        console.error("获取所有NFT失败:", allError);
-        setUserNFTs([]);
-        return;
-      }
-      
-      // 筛选用户拥有的NFT
-      const userOwnedNfts = allNfts.filter(nft => {
-        let isOwned = false;
-        
-        // 检查字符串类型的owner_address
-        if (typeof nft.owner_address === 'string') {
-          isOwned = nft.owner_address === connectedWallet;
+      const response = await nftService.getUserOwnedNFTs();
+      const nfts = response.map((nft: CouponNFT) => ({
+        ...nft,
+        name: nft.coupon_name || `NFT #${nft.id}`,
+        merchantName: nft.merchant_name || 'Unknown Merchant',
+        imageUrl: nft.coupon_image || '/placeholder-images/nft-default.jpg',
+        ownerId: nft.owner_addresses,
+        expirationDate: nft.expires_at || '',
+        tokenId: nft.token_id || nft.id.toString(),
+        details: {
+          merchantName: nft.merchant_name,
+          description: nft.description,
+          benefits: nft.benefits
         }
-        // 检查JSON对象类型的owner_address
-        else if (typeof nft.owner_address === 'object' && nft.owner_address !== null) {
-          isOwned = Object.values(nft.owner_address).includes(connectedWallet);
-        }
-        
-        return isOwned;
-      });
-      
-      // 筛选未在交换中的NFT - 使用新格式
-      const availableNfts = userOwnedNfts.filter(nft => {
-        // 如果swapping不存在或为false
-        if (nft.swapping === false || nft.swapping === undefined || nft.swapping === null) {
-          return true;
-        }
-        
-        // 新格式：检查swapping是否为对象
-        if (typeof nft.swapping === 'object' && nft.swapping !== null) {
-          // 如果所有数组都为空，则视为不在交换中
-          return Object.values(nft.swapping).every(value => 
-            !Array.isArray(value) || value.length === 0);
-        }
-        
-        // 向后兼容：旧格式
-        if (nft.swapping === true) {
-          return false;
-        }
-        
-        if (typeof nft.swapping === 'string' && nft.swapping.includes('{')) {
-          try {
-            const swappingObj = JSON.parse(nft.swapping);
-            if (typeof swappingObj === 'object') {
-              return !Object.values(swappingObj).some(status => 
-                status === true || status === "true");
-            }
-          } catch (err) {
-            console.error('解析swapping JSON字符串失败:', err);
-          }
-        }
-        
-        return true; // 默认可用
-      });
-      
-      console.log('用户拥有的可用NFT数量:', availableNfts.length);
-      
-      // 转换为应用格式
-      const userNftsFormatted = availableNfts.map(convertSupabaseNftToAppNft);
-      setUserNFTs(userNftsFormatted);
-      console.log("加载用户NFT完成:", userNftsFormatted.length);
+      })) as SwapNft[];
+      setUserNFTs(nfts);
     } catch (error) {
-      console.error("加载用户NFT时发生错误:", error);
+      console.error("Error loading user NFTs:", error);
       setUserNFTs([]);
     } finally {
       setIsLoadingUserNFTs(false);
     }
-  };
-
-  const loadUserPostedNFTs = async () => {
-    if (!connectedWallet) return [];
-    
-    try {
-      console.log('加载用户已发布的NFT, 钱包地址:', connectedWallet);
-      
-      // 获取所有NFT
-      const { data: allNfts, error: allError } = await supabase
-        .from('nfts')
-        .select('*');
-        
-      if (allError) {
-        console.error("获取所有NFT失败:", allError);
-        return [];
-      }
-      
-      // 筛选用户拥有的NFT
-      const userOwnedNfts = allNfts.filter(nft => {
-        let isOwned = false;
-        
-        // 检查字符串类型的owner_address
-        if (typeof nft.owner_address === 'string') {
-          isOwned = nft.owner_address === connectedWallet;
-        }
-        // 检查JSON对象类型的owner_address
-        else if (typeof nft.owner_address === 'object' && nft.owner_address !== null) {
-          isOwned = Object.values(nft.owner_address).includes(connectedWallet);
-        }
-        
-        return isOwned;
-      });
-      
-      // 筛选已在交换中的NFT - 使用新格式
-      const swappingNfts = userOwnedNfts.filter(nft => {
-        // 新格式：检查swapping是否为对象且包含非空数组
-        if (typeof nft.swapping === 'object' && nft.swapping !== null) {
-          return Object.values(nft.swapping).some(value => 
-            Array.isArray(value) && value.length > 0);
-        }
-        
-        // 向后兼容：旧格式
-        if (nft.swapping === true) {
-          return true;
-        }
-        
-        if (typeof nft.swapping === 'string' && nft.swapping.includes('{')) {
-          try {
-            const swappingObj = JSON.parse(nft.swapping);
-            if (typeof swappingObj === 'object') {
-              return Object.values(swappingObj).some(status => 
-                status === true || status === "true");
-            }
-          } catch (err) {
-            console.error('解析swapping JSON字符串失败:', err);
-          }
-        }
-        
-        return false;
-      });
-      
-      console.log('用户已发布交换的NFT数量:', swappingNfts.length);
-      
-      // 转换为应用格式
-      const formattedNfts = swappingNfts.map(convertSupabaseNftToAppNft);
-      console.log("加载用户已发布NFT完成:", formattedNfts.length);
-      return formattedNfts;
-    } catch (error) {
-      console.error("加载用户已发布NFT时发生错误:", error);
-    }
-    return [];
   };
 
   const handleOpenPostModal = () => {
@@ -493,39 +205,47 @@ function SwapMarket() {
   // New function to load all available NFTs for selection
   const loadAvailableNFTsForSelection = async () => {
     try {
-      // Get all NFTs excluding the user's own NFTs
-      const { data, error } = await supabase
-        .from('nfts')
-        .select('*');
-        
-      if (error) {
-        console.error("获取NFT数据失败:", error);
+      // 获取所有NFT
+      const response = await axiosInstance.get('/nft/market');
+      
+      if (response.status !== 200) {
+        console.error("Failed to fetch NFT data");
         return [];
       }
       
-      // Filter out the user's own NFTs and the currently selected NFT
-      const availableNfts = data.filter(nft => {
-        // Skip the currently selected NFT
+      // 过滤掉当前用户拥有的NFT和当前选择的NFT
+      const availableNfts = response.data.filter((nft: SwapNft) => {
+        // 跳过当前选择的NFT
         if (selectedNFTToPost && nft.id === selectedNFTToPost.id) {
           return false;
         }
         
-        // Skip user's own NFTs
-        if (typeof nft.owner_address === 'string') {
-          return nft.owner_address !== connectedWallet;
+        // 跳过用户自己的NFT
+        if (typeof nft.owner_addresses === 'string') {
+          return nft.owner_addresses !== connectedWallet;
         }
         
-        if (typeof nft.owner_address === 'object' && nft.owner_address !== null) {
-          return !Object.values(nft.owner_address).includes(connectedWallet);
+        if (typeof nft.owner_addresses === 'object' && nft.owner_addresses !== null) {
+          return !Object.values(nft.owner_addresses).includes(connectedWallet);
         }
         
         return true;
       });
       
-      // Convert to app format
-      return availableNfts.map(convertSupabaseNftToAppNft);
+      return availableNfts.map((nft: SwapNft) => ({
+        ...nft,
+        name: nft.coupon_name || `NFT #${nft.id}`,
+        merchantName: nft.merchant_name || 'Unknown Merchant',
+        imageUrl: nft.coupon_image || '/placeholder-images/nft-default.jpg',
+        ownerId: nft.owner_addresses,
+        details: {
+          merchantName: nft.merchant_name,
+          description: nft.description,
+          benefits: nft.benefits
+        }
+      }));
     } catch (error) {
-      console.error("加载可选NFT时发生错误:", error);
+      console.error("Error loading available NFTs:", error);
       return [];
     }
   };
@@ -548,89 +268,36 @@ function SwapMarket() {
   
   // New function to confirm selected desired NFTs
   const handleConfirmDesiredNFTs = async () => {
-    if (!selectedNFTToPost || !connectedWallet) return;
-    
+    if (!selectedNFTToPost || !desiredNFTs.length) return;
+
     try {
-      // 查询NFT以获取当前状态
-      const { data: nftData, error: nftError } = await supabase
-        .from('nfts')
-        .select('*')
-        .eq('id', selectedNFTToPost.id)
-        .single();
-        
-      if (nftError) {
-        console.error("获取NFT数据失败:", nftError);
-        alert('获取NFT数据失败，无法发布');
-        return;
-      }
-      
-      // 确认这个NFT属于当前用户
-      let isOwner = false;
-      
-      // 检查字符串类型的owner_address
-      if (typeof nftData.owner_address === 'string') {
-        isOwner = nftData.owner_address === connectedWallet;
-      }
-      // 检查JSON对象类型的owner_address
-      else if (typeof nftData.owner_address === 'object' && nftData.owner_address !== null) {
-        isOwner = Object.values(nftData.owner_address).includes(connectedWallet);
-      }
-      
-      if (!isOwner) {
-        console.error("当前用户不是此NFT的所有者");
-        alert('您不是此NFT的所有者，无法发布');
-        return;
-      }
-      
-      // 获取所需NFT的ID列表
-      const desiredNftIds = desiredNFTs.map(nft => nft.id);
-      
-      // 创建swapping对象，使用新的数据结构
-      let updatedSwapping: any = {};
-      
-      // 如果owner_address是对象，为每个token创建一个desired数组
-      if (typeof nftData.owner_address === 'object' && nftData.owner_address !== null) {
-        Object.keys(nftData.owner_address).forEach(key => {
-          updatedSwapping[key] = desiredNftIds;
-        });
-      } else {
-        // 单一所有者，创建一个pending_1条目
-        updatedSwapping["pending_1"] = desiredNftIds;
-      }
-      
-      // 如果没有选择期望的NFT，使用空数组
-      if (desiredNftIds.length === 0) {
-        if (typeof nftData.owner_address === 'object' && nftData.owner_address !== null) {
-          Object.keys(nftData.owner_address).forEach(key => {
-            updatedSwapping[key] = [];
-          });
-        } else {
-          updatedSwapping["pending_1"] = [];
-        }
-      }
-      
-      // 更新NFT的swapping状态
-      const { error } = await supabase
-        .from('nfts')
-        .update({ swapping: updatedSwapping })
-        .eq('id', selectedNFTToPost.id);
-        
-      if (error) {
-        console.error("发布NFT到市场失败:", error);
-        alert('发布NFT到市场失败');
-        return;
-      }
-      
-      alert('NFT已成功发布到交换市场！'); 
+      // 确认用户拥有选中的NFT
+      const ownershipResponse = await axiosInstance.get(`/nft/check-ownership/${selectedNFTToPost.id}`);
+      const ownershipData = handleApiResponse(ownershipResponse);
+
+      // 更新NFT的交换状态
+      const updateResponse = await axiosInstance.put(`/nft/${selectedNFTToPost.id}/swap`, {
+        desiredNFTs: desiredNFTs.map(nft => nft.id)
+      });
+      const updateData = handleApiResponse(updateResponse);
+
+      // 更新本地状态
+      setDesiredNFTs([]);
       setShowDesiredNFTsSelectionModal(false);
-      handleClosePostModal();
-      loadMarketNFTs(); 
+      setSelectedNFTToPost(null);
     } catch (error) {
-      console.error("发布NFT到市场时发生错误:", error);
-      alert('发布NFT失败'); 
+      console.error("Error confirming desired NFTs:", error);
     }
   };
   
+  // 处理API响应
+  const handleApiResponse = (response: AxiosResponse) => {
+    if (response.status !== 200) {
+      throw new Error('API request failed');
+    }
+    return response.data;
+  };
+
   // New function to filter available NFTs based on search query
   const getFilteredAvailableNFTs = () => {
     if (!desiredNFTsSearchQuery.trim()) {
@@ -708,26 +375,19 @@ function SwapMarket() {
       console.log(`确认交换: 用户的NFT ${selectedNftToOffer.name} (${selectedNftToOffer.id}) 换取 ${targetNftForSwap.name} (${targetNftForSwap.id})`);
       try {
           // 验证用户对选择的NFT的所有权
-          const { data: userNftData, error: userNftError } = await supabase
-            .from('nfts')
-            .select('*')
-            .eq('id', selectedNftToOffer.id)
-            .single();
-            
-          if (userNftError) {
-            throw new Error(`获取用户NFT数据失败: ${userNftError.message}`);
-          }
+          const userNftResponse = await axiosInstance.get(`/nft/${selectedNftToOffer.id}`);
+          const userNftData = handleApiResponse(userNftResponse);
           
           // 检查所有权
           let isOwner = false;
           
-          // 检查字符串类型的owner_address
-          if (typeof userNftData.owner_address === 'string') {
-            isOwner = userNftData.owner_address === connectedWallet;
+          // 检查字符串类型的owner_addresses
+          if (typeof userNftData.owner_addresses === 'string') {
+            isOwner = userNftData.owner_addresses === connectedWallet;
           }
-          // 检查JSON对象类型的owner_address
-          else if (typeof userNftData.owner_address === 'object' && userNftData.owner_address !== null) {
-            isOwner = Object.values(userNftData.owner_address).includes(connectedWallet);
+          // 检查JSON对象类型的owner_addresses
+          else if (typeof userNftData.owner_addresses === 'object' && userNftData.owner_addresses !== null) {
+            isOwner = Object.values(userNftData.owner_addresses).includes(connectedWallet);
           }
           
           if (!isOwner) {
@@ -735,15 +395,8 @@ function SwapMarket() {
           }
           
           // 验证目标NFT是否接受用户的NFT
-          const { data: targetNftData, error: targetNftError } = await supabase
-            .from('nfts')
-            .select('*')
-            .eq('id', targetNftForSwap.id)
-            .single();
-            
-          if (targetNftError) {
-            throw new Error(`获取目标NFT数据失败: ${targetNftError.message}`);
-          }
+          const targetNftResponse = await axiosInstance.get(`/nft/${targetNftForSwap.id}`);
+          const targetNftData = handleApiResponse(targetNftResponse);
           
           // 检查目标NFT是否可交换
           if (!targetNftData.swapping || 
@@ -784,8 +437,8 @@ function SwapMarket() {
           // 为用户的NFT创建swapping对象，表明它在交换中
           let userNftSwapping: any = {};
           
-          if (typeof userNftData.owner_address === 'object' && userNftData.owner_address !== null) {
-            Object.keys(userNftData.owner_address).forEach(key => {
+          if (typeof userNftData.owner_addresses === 'object' && userNftData.owner_addresses !== null) {
+            Object.keys(userNftData.owner_addresses).forEach(key => {
               userNftSwapping[key] = [targetNftForSwap.id];
             });
           } else {
@@ -793,19 +446,9 @@ function SwapMarket() {
           }
           
           // 更新用户NFT的swapping状态
-          const { error: markError } = await supabase
-            .from('nfts')
-            .update({ swapping: userNftSwapping })
-            .eq('id', selectedNftToOffer.id);
+          const updateResponse = await axiosInstance.put(`/nft/${selectedNftToOffer.id}/swapping`, { swapping: userNftSwapping });
+          const updateData = handleApiResponse(updateResponse);
             
-          if (markError) {
-            throw new Error(`标记NFT为交换状态失败: ${markError.message}`);
-          }
-            
-          // TODO: 这里应该实现实际的交换逻辑
-          // 这通常会涉及智能合约调用或后端交换处理
-          // 目前我们只是模拟交换请求的记录
-          
           alert('交换申请已成功发起！所有权将在对方接受后更新。');
           setShowSwapModal(false);
           setSelectedNftToOffer(null);
@@ -819,34 +462,31 @@ function SwapMarket() {
   };
 
   // 转换函数：将SwapNft转换为NftCard期望的格式
-  const adaptToNftCardFormat = (nft: SwapNft) => {
-    // 将benefits数组转换为字符串
-    const benefitsString = Array.isArray(nft.benefits) 
-      ? nft.benefits.join(', ') 
-      : (nft.benefits || '');
+  const adaptToNftCardFormat = (nft: SwapNft): SwapNft => {
+    // 确保必需字段存在
+    const coupon_name = nft.coupon_name || nft.name || `NFT #${nft.id}`;
+    const coupon_type = nft.coupon_type || 'Generic';
+    const expires_at = nft.expires_at || nft.expirationDate || new Date().toISOString();
     
+    // 处理owner_address字段
+    const owner_address = typeof nft.owner_addresses === 'string' 
+      ? nft.owner_addresses 
+      : Object.keys(nft.owner_addresses || {})[0] || '';
+    
+    // 创建一个新的对象，包含所有必需的属性
     return {
       id: nft.id,
-      coupon_name: nft.coupon_name || nft.name || `NFT #${nft.id}`,
-      coupon_type: nft.coupon_type || 'Generic',
-      coupon_image: nft.coupon_image,
-      expires_at: nft.expires_at || nft.expirationDate || new Date().toISOString(),
-      creator_address: nft.creator_address,
-      owner_address: nft.owner_address || nft.ownerId,
+      coupon_name,
+      coupon_type,
+      expires_at,
+      coupon_image: nft.coupon_image || nft.imageUrl || '/placeholder-images/nft-default.jpg',
+      creator_address: nft.creator_address || '',
+      owner_addresses: nft.owner_addresses || '',
       details: {
-        merchantName: nft.merchantName || 'Unknown Merchant',
+        merchantName: nft.merchant_name || nft.merchantName || 'Unknown Merchant',
         description: nft.description || '',
-        benefits: benefitsString, // 使用转换后的字符串
-      },
-      name: nft.name,
-      imageUrl: nft.imageUrl,
-      merchantName: nft.merchantName,
-      expirationDate: nft.expirationDate,
-      // 不要传递原始benefits数组，以避免类型冲突
-      ownerId: nft.ownerId,
-      description: nft.description,
-      // 确保必填字段有默认值
-      total_supply: nft.total_supply || 1
+        benefits: Array.isArray(nft.benefits) ? nft.benefits[0] : nft.benefits || ''
+      }
     };
   };
 
@@ -1351,16 +991,16 @@ function SwapMarket() {
                 <h3 className="text-lg font-semibold mb-2">Blockchain Information</h3>
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Contract Address:</span>
+                    <span className="text-gray-600">Token ID:</span>
                     <span className="text-gray-800 font-mono text-sm truncate ml-2">
-                      {selectedNftForDetail.contractAddress || 'N/A'}
+                      {selectedNftForDetail.token_id || selectedNftForDetail.id}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Owner:</span>
                     <span className="text-gray-800 font-mono text-sm truncate ml-2">
-                      {typeof selectedNftForDetail.owner_address === 'string' 
-                        ? `${selectedNftForDetail.owner_address.substring(0, 6)}...${selectedNftForDetail.owner_address.substring(38)}`
+                      {typeof selectedNftForDetail.owner_addresses === 'string' 
+                        ? `${selectedNftForDetail.owner_addresses.substring(0, 6)}...${selectedNftForDetail.owner_addresses.substring(38)}`
                         : 'Multiple Owners'}
                     </span>
                   </div>
@@ -1397,17 +1037,6 @@ function SwapMarket() {
     const [postedNFTs, setPostedNFTs] = useState<SwapNft[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
-    useEffect(() => {
-      async function fetchUserPostedNFTs() {
-        setIsLoading(true);
-        const nfts = await loadUserPostedNFTs();
-        setPostedNFTs(nfts || []);
-        setIsLoading(false);
-      }
-      
-      fetchUserPostedNFTs();
-    }, [connectedWallet]);
-    
     // Function to get the desired NFT IDs for a posted NFT
     const getDesiredNftIds = (nft: SwapNft) => {
       if (!nft.swapping) return [];
@@ -1431,6 +1060,38 @@ function SwapMarket() {
       
       return []; // Return empty array for old format or if no desired NFTs
     };
+    
+    useEffect(() => {
+      async function fetchUserPostedNFTs() {
+        setIsLoading(true);
+        try {
+          // 获取用户发布的NFT
+          const response = await axiosInstance.get('/nft/posted');
+          const nfts = handleApiResponse(response).map((nft: CouponNFT) => ({
+            ...nft,
+            name: nft.coupon_name || `NFT #${nft.id}`,
+            merchantName: nft.merchant_name || 'Unknown Merchant',
+            imageUrl: nft.coupon_image || '/placeholder-images/nft-default.jpg',
+            ownerId: nft.owner_addresses,
+            expirationDate: nft.expires_at || '',
+            tokenId: nft.token_id || nft.id.toString(),
+            details: {
+              merchantName: nft.merchant_name,
+              description: nft.description,
+              benefits: nft.benefits
+            }
+          })) as SwapNft[];
+          setPostedNFTs(nfts);
+        } catch (error) {
+          console.error("Error loading posted NFTs:", error);
+          setPostedNFTs([]);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+      
+      fetchUserPostedNFTs();
+    }, [connectedWallet]);
     
     if (isLoading) {
       return (
