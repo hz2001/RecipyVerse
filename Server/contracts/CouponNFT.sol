@@ -14,6 +14,8 @@ contract CouponNFT is ERC721, Ownable {
     uint256 public maxMint;
     mapping(uint256 => Coupon) private _coupons;
 
+    event CouponMinted(address indexed to, uint256 indexed tokenId, string benefitHash, uint256 expiryTimestamp);
+
     struct Coupon {
         string name;
         address creator;           // Merchant
