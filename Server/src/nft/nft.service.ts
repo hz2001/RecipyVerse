@@ -17,7 +17,11 @@ export async function createNFT(req: Request, res: Response) {
 
     const file = req.file as Express.Multer.File;
 
-    const fileUploaded = await fileDatabase.uploadFile(contractAddress, file, "nftPhoto");
+    let fileUploaded = {success: true, message: ''};
+
+    if (file != undefined) {
+        fileUploaded = await fileDatabase.uploadFile(contractAddress, file, "nftPhoto");
+    }
 
     const {
         success,
@@ -26,8 +30,8 @@ export async function createNFT(req: Request, res: Response) {
 
     if (success && fileUploaded.success) {
         res.status(200).send(message);
-    }else{
-        res.status(400).send(message + " " + fileUploaded.message);
+    } else {
+        res.status(400).send(`${message} ${fileUploaded.message}`.trim());
     }
 
 }
