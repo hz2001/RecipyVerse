@@ -14,8 +14,6 @@ Router.post('/upload_qualification', checkRole(), upload.single("file"), Merchan
 
 Router.get('/my_nft_contracts', checkRole("merchant"), MerchantService.getAllContracts)
 
-Router.get('/get_unverify_qualification', checkRole("admin"), MerchantService.getAllContracts)
-
 Router.get('/get_merchant_detail', checkRole('merchant'), MerchantService.getInfoBySessionId)
 
 export default Router;

@@ -1,6 +1,6 @@
 import {Request, Response} from 'express'
 import nftDatabase from "../database/nfts.service";
-
+import fileDatabase from "../database/file.service";
 
 export async function createNFT(req: Request, res: Response) {
     const body = req.body;
@@ -15,15 +15,19 @@ export async function createNFT(req: Request, res: Response) {
     const details = body.details
     const detailsHash = body.details_hash
 
+    const file = req.file as Express.Multer.File;
+
+    const fileUploaded = await fileDatabase.uploadFile(contractAddress, file, "nftPhoto");
+
     const {
         success,
         message
     } = await nftDatabase.insertNewNFT(expireDate, creatorAddress, couponName, couponType, couponImg, totalAmount, swapping, contractAddress, details, detailsHash)
 
-    if (success) {
+    if (success && fileUploaded.success) {
         res.status(200).send(message);
     }else{
-        res.status(400).send(message);
+        res.status(400).send(message + " " + fileUploaded.message);
     }
 
 }

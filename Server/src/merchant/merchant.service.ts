@@ -29,6 +29,14 @@ export async function getAllContracts(req: Request, res: Response) {
     const sessionId = req.query?.sessionId as string;
     const address = await verificationDatabase.getAddressBySessionId(sessionId);
     const contracts = await nftDatabase.getNFTsByCreator(address);
+    for(let i = 0; i < contracts.length; i++){
+        const address = contracts[i].contract_address;
+        const file = await fileDatabase.getFileUrl(address, "nftPhoto");
+        if(file.success && file.data != null && file.data != ""){
+            contracts[i].coupon_image = file.data
+        }
+
+    }
     return res.status(200).send(contracts);
 }
 
