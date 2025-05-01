@@ -1,5 +1,5 @@
 import {Request, Response} from 'express'
-import databaseService from "../database/database.service";
+import nftDatabase from "../database/nfts.service";
 
 
 export async function createNFT(req: Request, res: Response) {
@@ -18,12 +18,14 @@ export async function createNFT(req: Request, res: Response) {
     const {
         success,
         message
-    } = await databaseService.insertNewNFT(expireDate, creatorAddress, couponName, couponType, couponImg, totalAmount, swapping, contractAddress, details, detailsHash)
+    } = await nftDatabase.insertNewNFT(expireDate, creatorAddress, couponName, couponType, couponImg, totalAmount, swapping, contractAddress, details, detailsHash)
 
     if (success) {
         res.status(200).send(message);
+    }else{
+        res.status(400).send(message);
     }
-    res.status(400).send(message);
+
 }
 
 

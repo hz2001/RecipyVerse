@@ -1,12 +1,13 @@
 import {Request, Response} from 'express'
-import databaseService from "../database/database.service";
-
+import verificationDatabase from "../database/verification.service"
+import userDatabase from "../database/users.service"
+import nftDatabase from "../database/nfts.service"
 
 export async function getUserInfo(req: Request, res: Response) {
     const sessionId = req.query?.sessionId as string;
-    const address = await databaseService.getAddressBySessionId(sessionId);
+    const address = await verificationDatabase.getAddressBySessionId(sessionId);
 
-    const info = databaseService.getUserInfo(address);
+    const info = userDatabase.getUserInfo(address);
     if(info){
         return res.status(200).send(info);
     }
@@ -15,15 +16,15 @@ export async function getUserInfo(req: Request, res: Response) {
 
 export async function getAllNFTs(req: Request, res: Response) {
     const sessionId = req.query?.sessionId as string;
-    const address = await databaseService.getAddressBySessionId(sessionId);
-    const nfts = await databaseService.getNFTsByAddress(address);
+    const address = await verificationDatabase.getAddressBySessionId(sessionId);
+    const nfts = await nftDatabase.getNFTsByAddress(address);
     return res.status(200).send(nfts);
 }
 
 export async function getDetailedNFT(req: Request, res: Response) {
     const nftId = req.params?.nftId as string
 
-    const nft = await databaseService.getDetailedNFTById(nftId);
+    const nft = await nftDatabase.getDetailedNFTById(nftId);
     if(nft){
         return res.status(200).send(nft);
     }
