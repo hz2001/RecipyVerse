@@ -58,6 +58,7 @@ contract CouponNFT is ERC721, Ownable {
 
         currentCircuration++;
         totalSupply++;
+        emit CouponMinted(to, tokenId, benefitHash, collectionExpiry);
     }
 
 
