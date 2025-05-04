@@ -1,5 +1,3 @@
-import { BrowserProvider, JsonRpcSigner, Wallet, verifyMessage } from 'ethers';
-import axiosInstance, { ApiError } from './api';
 
 // 钱包服务接口定义
 export interface WalletService {
@@ -8,28 +6,6 @@ export interface WalletService {
   disconnectWallet(): void;
   isConnected(): boolean;
 }
-
-/**
- * 获取MetaMask提供的以太坊提供者和签名者
- */
-const getEthereumProvider = async (): Promise<{ provider: BrowserProvider, signer: JsonRpcSigner } | null> => {
-  try {
-    // 检查是否安装了MetaMask
-    if (typeof window.ethereum === 'undefined') {
-      console.error('MetaMask is not installed');
-      alert('MetaMask is not installed. Please install MetaMask to use this application.');
-      return null;
-    }
-
-    // 创建提供者和签名者
-    const provider = new BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    return { provider, signer };
-  } catch (error) {
-    console.error('Failed to get ethereum provider:', error);
-    return null;
-  }
-};
 
 /**
  * 钱包服务实现
@@ -43,7 +19,8 @@ class WalletServiceImpl implements WalletService {
    */
   async connectWallet(): Promise<string | null> {
     if (!window.ethereum) {
-      alert("You need MetaMask to use this app.");
+      console.error('MetaMask is not installed');
+      alert('MetaMask is not installed. Please install MetaMask to use this application.');
       return null;
     }
 
@@ -86,7 +63,6 @@ class WalletServiceImpl implements WalletService {
         });
         const sessionId = await result.text();
         document.cookie = `sessionId=${sessionId}; path=/; max-age=3600`;
-        localStorage.setItem('sessionId', sessionId);
         localStorage.setItem('walletAddress', address);
         return sessionId;
     }catch (e) {
@@ -100,20 +76,20 @@ class WalletServiceImpl implements WalletService {
    */
   disconnectWallet(): void {
     localStorage.removeItem('walletAddress');
-    localStorage.removeItem('sessionId');
+    document.cookie = 'sessionId=; path=/; max-age=0';
   }
   
   /**
    * 检查钱包是否已连接
    */
   isConnected(): boolean {
-    return !!localStorage.getItem('sessionId') && !!localStorage.getItem('walletAddress');
+    return !!document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
   }
   
   /**
    * 获取当前连接的钱包地址
    */
-  getConnectedAddress(): string | null {
+  getConnectedWalletAddress(): string | null {
     return localStorage.getItem('walletAddress');
   }
 }
