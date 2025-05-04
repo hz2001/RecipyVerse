@@ -157,7 +157,6 @@ const ProfilePage: React.FC = () => {
         )}
 
         {/* 新用户注册模块 */}
-        
         <h2 className="text-2xl font-bold text-gray-800 mb-6">First time using RecipeVerse?</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto mt-6">
@@ -174,7 +173,7 @@ const ProfilePage: React.FC = () => {
               disabled={isConnecting || registrationStep === 'connecting' || isUploading}
               className="w-full bg-amber-500 text-white px-4 py-2 rounded-md hover:bg-amber-600 transition-colors disabled:bg-amber-300 disabled:cursor-not-allowed"
             >
-              {isConnecting ? 'Connecting Wallet...' : 'Connect Wallet'}
+              {isConnecting ? 'Connecting Wallet...' : 'Connect Wallet to login/register'}
             </button>
           </div>
           
@@ -192,31 +191,6 @@ const ProfilePage: React.FC = () => {
               className="w-full bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
             >
               {registrationStep === 'connecting' ? 'Registration in Progress...' : (isUploading ? 'Uploading Information...' : 'Start Registration')}
-            </button>
-          </div>
-        </div>
-        <div className="mt-10 pt-8 border-t border-gray-200">
-          <p className="text-gray-600 mb-6">Already have an account? Login to view your profile.</p>
-          <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4 justify-center mb-10">
-            <button
-              onClick={connectWallet}
-              disabled={isConnecting || registrationStep === 'connecting' || isUploading}
-              className="bg-amber-500 text-white px-6 py-2 rounded-md hover:bg-amber-600 transition-colors flex items-center justify-center disabled:bg-amber-300 disabled:cursor-not-allowed"
-            >
-              {isConnecting ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                  Connecting...
-                </>
-              ) : (
-                'Login (Connect Wallet)'
-              )}
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="bg-gray-200 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-300 transition-colors"
-            >
-              Go to Home
             </button>
           </div>
         </div>
