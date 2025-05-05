@@ -1,7 +1,7 @@
 import {Request, Response} from 'express'
 import {verifyMessage} from "ethers";
-import verificationDatabase from "../database/verification.service"
-import userDatabase from "../database/users.service"
+import verificationDatabase from "../database/verification.database"
+import userDatabase from "../database/users.database"
 
 export async function sendTimeStamp(req: Request, res: Response) {
     try {

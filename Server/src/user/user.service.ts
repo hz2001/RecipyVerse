@@ -1,13 +1,13 @@
 import {Request, Response} from 'express'
-import verificationDatabase from "../database/verification.service"
-import userDatabase from "../database/users.service"
-import nftDatabase from "../database/nfts.service"
+import verificationDatabase from "../database/verification.database"
+import userDatabase from "../database/users.database"
+import nftDatabase from "../database/nfts.database"
 
 export async function getUserInfo(req: Request, res: Response) {
     const sessionId = req.query?.sessionId as string;
     const address = await verificationDatabase.getAddressBySessionId(sessionId);
 
-    const info = userDatabase.getUserInfo(address);
+    const info = await userDatabase.getUserInfo(address);
     if(info){
         return res.status(200).send(info);
     }

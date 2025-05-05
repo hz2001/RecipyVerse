@@ -16,5 +16,7 @@ Router.get('/my_nft_contracts', checkRole("merchant"), MerchantService.getAllCon
 
 Router.get('/get_merchant_detail', checkRole('merchant'), MerchantService.getInfoBySessionId)
 
+Router.get('/get_merchant_info/:address', checkRole(), MerchantService.getInfoByAddress)
+
 export default Router;
 

@@ -16,6 +16,11 @@ import {updateSessionIds} from "./utils/utils";
 
 dotenv.config();
 const app = express();
+
+app.use((req, res, next) => {
+    console.log(`访问来自: ${req.method} ${req.originalUrl}， ip: ${req.ip}, 时间: ${new Date().toLocaleString()}`);
+    next();
+});
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));

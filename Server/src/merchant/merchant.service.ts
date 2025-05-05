@@ -1,10 +1,10 @@
 import {Request, Response} from 'express'
 import {UserRole} from "../database/database.type";
-import verificationDatabase from "../database/verification.service"
-import userDatabase from "../database/users.service"
-import merchantDatabase from "../database/merchants.service"
-import fileDatabase from "../database/file.service"
-import nftDatabase from "../database/nfts.service"
+import verificationDatabase from "../database/verification.database"
+import userDatabase from "../database/users.database"
+import merchantDatabase from "../database/merchants.database"
+import fileDatabase from "../database/file.databse"
+import nftDatabase from "../database/nfts.database"
 
 export async function uploadQualification(req: Request, res: Response) {
     const { merchantName, merchantAddress } = req.body;
@@ -50,8 +50,18 @@ export async function getInfoBySessionId(req: Request, res: Response){
     return res.status(400).send("Failed to get merchant info");
 }
 
+export async function getInfoByAddress(req: Request, res: Response){
+    const address = req.params?.address as string;
+    const merchant = await merchantDatabase.getMerchant(address);
+    if(merchant){
+        return res.status(200).send(merchant);
+    }
+    return res.status(400).send("Failed to get merchant info");
+}
+
 export default {
     uploadQualification,
     getAllContracts,
-    getInfoBySessionId
+    getInfoBySessionId,
+    getInfoByAddress
 }

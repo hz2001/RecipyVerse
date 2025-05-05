@@ -1,8 +1,8 @@
 import {NextFunction, Request, Response} from "express";
 import {UserRole} from "../database/database.type";
-import verificationDatabase from "../database/verification.service"
-import userDatabase from "../database/users.service"
-import merchantDatabase from "../database/merchants.service"
+import verificationDatabase from "../database/verification.database"
+import userDatabase from "../database/users.database"
+import merchantDatabase from "../database/merchants.database"
 
 export function checkRole(requiredRole?: string, requireVerified?: boolean) {
     return async (req: Request, res: Response, next: NextFunction) => {
