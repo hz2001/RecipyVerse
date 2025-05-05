@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { CouponNFT } from '../services/nftService';
+import { NFT } from '../services/nftService';
 
 interface NftCardProps {
-  nft: CouponNFT;
-  onClick?: (nft: CouponNFT) => void;
+  nft: NFT;
+  onClick?: (nft: NFT) => void;
   isSelected?: boolean;
 }
 

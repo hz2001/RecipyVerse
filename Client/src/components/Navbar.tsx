@@ -5,7 +5,7 @@ import { UserRole } from '../services/userService';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { connectedWallet, isConnecting, connectWallet, disconnectWallet, userRole, isAdmin, isMerchant } = useWallet();
+  const { connectedWallet, isConnecting, connectWallet, disconnectWallet} = useWallet();
   
   // 格式化显示的钱包地址
   const formatAddress = (address: string) => {
@@ -26,13 +26,6 @@ const Navbar = () => {
             <Link to="/swap-market" className="text-white hover:text-amber-100 transition-colors">
               Swap Market
             </Link>
-            
-            {/* 根据用户角色显示不同的导航链接 */}
-            {isMerchant && (
-              <Link to="/my-recipes" className="text-white hover:text-amber-100 transition-colors">
-                My Recipes
-              </Link>
-            )}
             
             
             <Link to="/profile" className="text-white hover:text-amber-100 transition-colors">
@@ -100,33 +93,6 @@ const Navbar = () => {
               Swap Market
             </Link>
             
-            {isMerchant && (
-              <Link
-                to="/my-recipes"
-                className="block px-3 py-2 rounded-md text-base font-medium text-white hover:text-amber-100 hover:bg-amber-700"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                My Recipes
-              </Link>
-            )}
-            
-            {isAdmin ? (
-              <Link
-                to="/admin/verification"
-                className="block px-3 py-2 rounded-md text-base font-medium text-white hover:text-amber-100 hover:bg-amber-700"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Verification Management
-              </Link>
-            ) : (
-              <Link
-                to="/admin"
-                className="block px-3 py-2 rounded-md text-base font-medium text-white hover:text-amber-100 hover:bg-amber-700"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Admin
-              </Link>
-            )}
             
             <Link
               to="/profile"

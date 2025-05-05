@@ -20,7 +20,7 @@ const AdminPage: React.FC = () => {
     if (connectedWallet && isAdmin) {
       navigate('/admin/verification');
     }
-  }, [connectedWallet, isAdmin, navigate]);
+  }, [connectedWallet, isAdmin]);
 
   // Handle wallet connection and admin verification
   const handleConnectWallet = async () => {
@@ -31,12 +31,10 @@ const AdminPage: React.FC = () => {
       await connectWallet();
       
       if (connectedWallet) {
-        // Get session ID from localStorage
-        const sessionId = localStorage.getItem('sessionId');
+        const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
         if (!sessionId) {
           throw new Error('No active session found');
         }
-
         // Verify admin role with backend using the new endpoint
         const response = await axiosInstance.get('/api/admin/verify', {
           params: { sessionId }

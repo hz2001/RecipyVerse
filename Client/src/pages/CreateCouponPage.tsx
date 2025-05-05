@@ -3,17 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import nftService from '../services/nftService';
 import contractService from '../services/contractService';
-import { ContractType } from '../services/contractService';
 import merchantService from '../services/merchantService';
-import { BigNumberish } from 'ethers';
-import { ethers } from 'ethers';
+
 
 // Basic validation for wallet IDs
 const WALLET_ID_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 const CreateCouponPage: React.FC = () => {
   const navigate = useNavigate();
-  const { connectedWallet, isMerchant, isVerifiedMerchant } = useWallet();
+  const { connectedWallet } = useWallet();
 
   const [couponName, setCouponName] = useState<string>('');
   const [couponType, setCouponType] = useState<'Cash' | 'Discount' | 'Food'>('Cash');
@@ -32,13 +30,6 @@ const CreateCouponPage: React.FC = () => {
   // Redirect if user is not a verified merchant
   useEffect(() => {
     const checkMerchantStatus = async () => {
-      // 检查本地存储中的商家状态
-      const isMerchant = localStorage.getItem('isMerchant') === 'true';
-      
-      if (!isMerchant) {
-        navigate('/profile');
-        return;
-      }
 
       // 如果是商家，检查验证状态
       try {
@@ -53,7 +44,7 @@ const CreateCouponPage: React.FC = () => {
     };
 
     checkMerchantStatus();
-  }, [navigate]);
+  }, []);
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
