@@ -24,14 +24,14 @@ const NftCard: React.FC<NftCardProps> = ({ nft, onClick, isSelected }) => {
   };
 
   // 解析details JSON字符串
-  const details = nft.description ? JSON.parse(nft.description) : null;
+  const details = nft.details ? nft.details : null;
 
   // 基础样式类
-  const baseClasses = "border rounded-lg overflow-hidden shadow-md h-full flex flex-col bg-white";
+  const baseClasses = "rounded-lg overflow-hidden shadow-md h-full flex flex-col bg-white";
   // 条件样式类（选中和可点击状态）
   const conditionalClasses = `
     ${onClick ? 'cursor-pointer hover:shadow-lg transition-shadow duration-200' : ''}
-    ${isSelected ? 'border-blue-500 border-2' : 'border-gray-200'}
+    ${isSelected ? 'ring-2 ring-amber-500' : 'border border-gray-200'}
   `;
 
   return (
@@ -40,7 +40,7 @@ const NftCard: React.FC<NftCardProps> = ({ nft, onClick, isSelected }) => {
       onClick={handleClick}
     >
       {/* 图片部分 */}
-      <div className="w-full h-40 bg-gray-200 flex items-center justify-center text-gray-500">
+      <div className="w-full h-36 bg-gray-200 flex items-center justify-center text-gray-500">
         {imageError ? (
           <p className="text-xs">No Image</p>
         ) : (
@@ -65,14 +65,9 @@ const NftCard: React.FC<NftCardProps> = ({ nft, onClick, isSelected }) => {
         )}
         {details && (
           <>
-            {details.validity && (
-              <p className="text-gray-600 text-sm mb-1"> 
-                Validity: {details.validity}
-              </p>
-            )}
-            {details.description && (
+            {details.benefits && (
               <p className="text-gray-700 text-sm line-clamp-2 mt-2"> 
-                {details.description}
+                {details.benefits}
               </p>
             )}
           </>

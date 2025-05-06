@@ -6,13 +6,15 @@ interface WalletContextType {
   isConnecting: boolean;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
+  sessionId: string | null;
 }
 
-const WalletContext = createContext<WalletContextType>({
+export const WalletContext = createContext<WalletContextType>({
   connectedWallet: null,
   isConnecting: false,
   connectWallet: async () => {},
   disconnectWallet: () => {},
+  sessionId: null,
 });
 
 export const useWallet = () => useContext(WalletContext);
@@ -24,13 +26,15 @@ interface WalletProviderProps {
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   // 检查本地存储中的钱包连接状态
   useEffect(() => {
     const checkWalletConnection = async () => {
-      const isConnected = walletService.isConnected();
-      if (isConnected) {
-        const address = localStorage.getItem('walletAddress');
+      const address = await walletService.getConnectedWalletAddress();
+      const sessionId = await walletService.getSessionId();
+      if (address && sessionId) {
         setConnectedWallet(address);
+        setSessionId(sessionId);
       }
     };
 
@@ -41,19 +45,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const connectWallet = async () => {
     setIsConnecting(true);
     try {
-      // 连接钱包
       const address = await walletService.connectWallet();
-      if (!address) {
-        throw new Error('Failed to connect wallet');
-      }
-      
-      // 验证签名
-      const sessionId = await walletService.verifySignature(address);
-      if (!sessionId) {
-        throw new Error('Failed to verify signature');
-      }
       
       setConnectedWallet(address);
+      const sessionId = await walletService.getSessionId();
+      setSessionId(sessionId);
     } catch (error) {
       console.error('Error connecting wallet:', error);
       alert('Failed to connect wallet');
@@ -66,6 +62,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const disconnectWallet = () => {
     walletService.disconnectWallet();
     setConnectedWallet(null);
+    setSessionId(null);
   };
 
   return (
@@ -74,10 +71,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       isConnecting,
       connectWallet,
       disconnectWallet,
+      sessionId,
     }}>
       {children}
     </WalletContext.Provider>
   );
-};
-
-export default WalletContext; 
+}; 
