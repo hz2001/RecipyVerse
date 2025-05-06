@@ -6,7 +6,7 @@ interface IERC721WithMetadata {
     function transferFrom(address from, address to, uint256 tokenId) external;
 }
 
-contract ConditionalNFTSwap {
+contract swapNoFactoryCheck {
     struct SwapRequest {
         address requester;
         address collection;

@@ -12,7 +12,7 @@ interface IFactoryValidator {
     function isFactoryChild(address collectionAddr) external view returns (bool);
 }
 
-contract ConditionalNFTSwap {
+contract NewConditionalSwap {
     /// @notice Only collections deployed by this factory are allowed
     address public immutable factory;
 
