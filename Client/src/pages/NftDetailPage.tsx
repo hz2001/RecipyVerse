@@ -1,78 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import nftService, { CouponNFT } from '../services/nftService';
-
-// Placeholder for fetching function
-const fetchNftDetails = async (id: string): Promise<CouponNFT | null> => {
-    console.log(`Fetching details for NFT ID: ${id}`);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    // Find in mock data or fetch from backend
-    // TODO:Using a combined mock list for simplicity here, replace with actual API
-    const mockMarketNfts: CouponNFT[] = [
-        { 
-            id: 'market1', 
-            coupon_name: 'Coffee Coupon', 
-            merchant_name: 'Cafe Central', 
-            expires_at: '2024-12-31', 
-            benefits: 'Free Espresso', 
-            owner_addresses: { 'user456': 'owner' }, 
-            coupon_image: 'coffee.jpg', 
-            description: 'Enjoy a free espresso on us! Valid any day.', 
-            token_id: '1',
-            coupon_type: 'discount',
-            total_supply: 1,
-            creator_address: '0x789'
-        },
-        { 
-            id: 'market2', 
-            coupon_name: 'Movie Ticket', 
-            merchant_name: 'Cinema Plex', 
-            expires_at: '2024-11-30', 
-            benefits: '50% off Popcorn', 
-            owner_addresses: { 'user789': 'owner' }, 
-            coupon_image: 'movie.jpg', 
-            description: 'One free admission to any regular screening. Excludes 3D/IMAX. Also get 50% off a large popcorn.', 
-            token_id: '2',
-            coupon_type: 'ticket',
-            total_supply: 1,
-            creator_address: '0x789'
-        },
-        { 
-            id: 'user1', 
-            coupon_name: 'Restaurant Discount', 
-            merchant_name: 'Pasta Place', 
-            expires_at: '2025-01-15', 
-            benefits: '10% off total bill', 
-            owner_addresses: { 'user123': 'owner' }, 
-            coupon_image: 'restaurant.jpg', 
-            description: 'A tasty 10% discount on your entire bill. Max discount $20.', 
-            token_id: '4',
-            coupon_type: 'discount',
-            total_supply: 1,
-            creator_address: '0x789'
-        }
-    ];
-    const foundNft = mockMarketNfts.find(nft => nft.id === id);
-    return foundNft || null;
-};
+import nftService, { NFT } from '../services/nftService';
+import walletService from '../services/walletService';
 
 function NftDetailPage() {
   const { nftId } = useParams<{ nftId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const [nftDetails, setNftDetails] = useState<CouponNFT | null>(null);
+  const [nftDetails, setNftDetails] = useState<NFT | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Simulating logged-in user ID (replace with actual context/auth)
-  const currentUserId = 'currentUser123'; 
+  useEffect(() => {
+    const fetchWalletAddress = async () => {
+      const address = await walletService.getConnectedWalletAddress();
+      setCurrentUserId(address);
+    };
+    fetchWalletAddress();
+  }, []);
 
   useEffect(() => {
     // Check if NFT data was passed via route state (from NftCard click)
-    // This is an optimization to avoid re-fetching if we already have the data
-    // Note: For a real app, fetching by ID is more robust
-    const locationState = location.state as { nftData?: CouponNFT }; 
+    const locationState = location.state as { nftData?: NFT }; 
     if (locationState?.nftData && locationState.nftData.id === nftId) {
         console.log("Using NFT data from location state");
         setNftDetails(locationState.nftData);
@@ -80,7 +30,7 @@ function NftDetailPage() {
     } else if (nftId) {
         console.log("Fetching NFT data by ID");
         setIsLoading(true);
-        fetchNftDetails(nftId)
+        nftService.getNFTDetails(nftId)
             .then(data => {
                 if (data) {
                     setNftDetails(data);
@@ -108,6 +58,9 @@ function NftDetailPage() {
       console.log("Navigating back to Swap Market to initiate swap for:", nftDetails.id);
       navigate('/swap-market', { state: { triggerSwapForNft: nftDetails } });
   };
+
+  // Determine if the current user owns this NFT
+  const isOwner = nftDetails?.owner_address === currentUserId;
 
   if (isLoading) {
     return (
@@ -148,11 +101,6 @@ function NftDetailPage() {
       </div>
     );
   }
-
-  // Determine if the current user owns this NFT
-  const isOwner = typeof nftDetails.owner_addresses === 'string' 
-      ? nftDetails.owner_addresses === currentUserId
-      : nftDetails.owner_addresses?.[currentUserId] === 'owner';
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-6">
@@ -204,12 +152,12 @@ function NftDetailPage() {
           {/* Left Column - Benefits */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Benefits</h2>
-            {nftDetails.benefits ? (
+            {nftDetails.details ? (
               <div className="flex items-start">
                 <span className="bg-amber-100 text-amber-600 h-5 w-5 rounded-full flex items-center justify-center text-xs mr-3 mt-1">
                   •
                 </span>
-                <span className="text-gray-700">{nftDetails.benefits}</span>
+                <span className="text-gray-700">{nftDetails.details}</span>
               </div>
             ) : (
               <p className="text-gray-600">No specific benefits listed for this NFT.</p>
@@ -224,7 +172,7 @@ function NftDetailPage() {
           {/* Right Column - Description and Actions */}
           <div className="md:col-span-2 bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Description</h2>
-            <p className="text-gray-700 mb-8">{nftDetails.description || 'No description available.'}</p>
+            <p className="text-gray-700 mb-8">{nftDetails.details || 'No description available.'}</p>
             
             <h2 className="text-xl font-bold text-gray-800 mb-4">Blockchain Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -243,9 +191,7 @@ function NftDetailPage() {
               <div>
                 <p className="text-gray-600 mb-2">Owner ID:</p>
                 <div className="bg-gray-100 p-3 rounded-md font-mono text-sm break-all">
-                  {typeof nftDetails.owner_addresses === 'string' 
-                      ? nftDetails.owner_addresses 
-                      : Object.keys(nftDetails.owner_addresses || {})[0] || 'Unknown'}
+                  {nftDetails.owner_address || 'Unknown'}
                 </div>
               </div>
               <div>

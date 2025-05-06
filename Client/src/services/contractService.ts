@@ -119,6 +119,54 @@ class ContractServiceImpl implements ContractService {
       return null;
     }
   }
+  
+  async getContractToBeCalled(contractAddress: string): Promise<Contract | null> {
+    try {
+      // 确保钱包已连接
+      if (!walletService.isConnected()) {
+        console.error('Wallet not connected');
+        return null;
+      }
+      
+      // 获取提供者和签名者
+      const result = await this.getProviderAndSigner();
+      if (!result) {
+        return null;
+      }
+      const { signer } = result;
+      
+      // 根据合约类型获取ABI
+      const { abi } = await this.getNFTCouponABI();
+
+      return new ethers.Contract(contractAddress, abi, signer);
+    } catch (error) {
+      console.error('Failed to create contract:', error);
+      return null;
+    }
+  }
+
+  async getSwapContract(): Promise<Contract | null> {
+    try {
+      // 确保钱包已连接
+      if (!walletService.isConnected()) {
+        console.error('Wallet not connected');
+        return null;
+      }
+      const result = await this.getProviderAndSigner();
+      if (!result) {
+        return null;
+      }
+      const { signer } = result;
+      
+      // 根据合约类型获取ABI    
+      const { address, abi } = await this.getNFTSwapABI();
+
+      return new ethers.Contract(address, abi, signer);
+    } catch (error) {
+      console.error('Failed to create contract:', error);
+      return null;
+    }
+  }
 }
 
 // 单例模式
