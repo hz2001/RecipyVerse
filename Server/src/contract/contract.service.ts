@@ -19,7 +19,7 @@ export function getNFTCouponContractAbi(req: Request, res: Response) {
 }
 
 export function getNFTSwapContractAbi(req: Request, res: Response) {
-    const abi = require('../../../build/abis/ConditionalNFTSwap.json');
+    const abi = require('../../../build/abis/NewConditionalSwap.json');
     const address = env.SWAP_ADDRESS;
 
     res.status(200).json({

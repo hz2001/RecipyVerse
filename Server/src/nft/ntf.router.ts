@@ -10,7 +10,8 @@ Router.post('/create_nft', checkRole('merchant',true), upload.single("file"), nf
 
 Router.put('/update/:id', checkRole(), upload.single("file"), nftService.updateNFT)
 
-Router.get("/get_swapping",checkRole(), nftService.getAllPendingSwapping)
+Router.get("/get_swapping", checkRole(), nftService.getAllPendingSwapping)
 
+Router.get("/get_all", checkRole(), nftService.getAllNFTs)
 
 export default Router;

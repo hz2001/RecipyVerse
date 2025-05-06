@@ -2,7 +2,7 @@ import {supabase} from "./database";
 import {NFT} from "./database.type";
 
 export async function getNFTsByCreator(address: string) {
-    const {data, error} = await supabase
+    const {data} = await supabase
         .from('nfts')
         .select(`*`)
         .ilike('creator_address', address);
@@ -23,7 +23,7 @@ export async function getNFTsByAddress(address: string) {
 }
 
 export async function getDetailedNFTById(nftId: string) {
-    const {data, error} = await supabase
+    const {data} = await supabase
         .from('nfts')
         .select(`*`)
         .eq('id', nftId);
@@ -56,7 +56,7 @@ export async function insertNewNFT(expirationTimeStamp: string, creatorAddress: 
 }
 
 export async function updateNFT(nftId: string, expirationTimeStamp: string, creatorAddress: string, couponName: string, couponType: string, couponImg: string, totalAmount: number, swapping: string, contractAddress: string, details: string, detailHash: string, tokenId: string) {
-    const {data, error} = await supabase
+    const {error} = await supabase
         .from('nfts')
         .update({
             expires_at: expirationTimeStamp,
@@ -81,7 +81,7 @@ export async function updateNFT(nftId: string, expirationTimeStamp: string, crea
 }
 
 export async function getSwappingNFTs() {
-    const {data, error} = await supabase
+    const {data} = await supabase
         .from('nfts')
         .select(`*`)
         .not('swapping', 'is', null)
@@ -89,11 +89,21 @@ export async function getSwappingNFTs() {
     return data && data.length > 0 ? data as NFT[] : []   
 }
 
+export async function getAllNFTs() {
+    const {data, error} = await supabase
+        .from('nfts')
+        .select(`*`)
+    if (error) {console.error('Error on get all NFTs:', error); return []}
+    return data && data.length > 0 ? data as NFT[] : []
+}
+
+
 export default {
     getNFTsByCreator,
     getNFTsByAddress,
     getDetailedNFTById,
     updateNFT,
     insertNewNFT,
-    getSwappingNFTs    
+    getSwappingNFTs,
+    getAllNFTs
 }

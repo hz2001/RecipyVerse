@@ -92,11 +92,15 @@ export async function getAllPendingSwapping(req:Request, res:Response) {
     return res.status(200).send(nfts)
 }
 
-
+export async function getAllNFTs(req:Request, res:Response){
+    const nfts = await nftDatabase.getAllNFTs()
+    return res.status(200).send(nfts)
+}
 
 
 export default {
     createNFT,
     updateNFT,
-    getAllPendingSwapping
+    getAllPendingSwapping,
+    getAllNFTs
 }
