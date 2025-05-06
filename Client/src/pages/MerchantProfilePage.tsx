@@ -1,24 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useWallet } from '../contexts/WalletContext';
+import { useWallet, WalletContext } from '../contexts/WalletContext';
 import userService, { UserRole, User } from '../services/userService';
 import merchantService, { Merchant } from '../services/merchantService';
 import NftTypeSelectionModal from '../components/NftTypeSelectionModal';
 import NftCard from '../components/NftCard';
-import nftService, { CouponNFT } from '../services/nftService';
+import nftService, { NFT } from '../services/nftService';
 import MerchantVerificationInputModal from '../components/MerchantVerificationInputModal';
 
 
 
 // NFT卡片适配器
-const adaptNftForCard = (nft: CouponNFT): any => ({
+const adaptNftForCard = (nft: NFT): any => ({
   ...nft,
   coupon_name: nft.coupon_name || 'Unnamed NFT'
 });
 
 const MerchantProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { connectedWallet, userRole, updateUserData, userData, connectWallet } = useWallet();
+  const { connectedWallet, connectWallet, disconnectWallet, sessionId } = useWallet();
   
   const [userInfo, setUserInfo] = useState<User | null>(null);
   const [merchantInfo, setMerchantInfo] = useState<Merchant | null>(null);
@@ -26,15 +26,15 @@ const MerchantProfilePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // NFT数据
-  const [nfts, setNfts] = useState<CouponNFT[]>([]);
-  const [createdNfts, setCreatedNfts] = useState<CouponNFT[]>([]);
+  const [ownedNfts, setOwnedNfts] = useState<NFT[]>([]);
+  const [createdNfts, setCreatedNfts] = useState<NFT[]>([]);
   
   // NFT类型选择模态框
   const [isNftTypeModalOpen, setIsNftTypeModalOpen] = useState(false);
   
   // NFT详情模态框
   const [showNftDetailModal, setShowNftDetailModal] = useState(false);
-  const [selectedNftForDetail, setSelectedNftForDetail] = useState<CouponNFT | null>(null);
+  const [selectedNftForDetail, setSelectedNftForDetail] = useState<NFT | null>(null);
 
   // 添加商家验证模态框状态
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
@@ -45,92 +45,89 @@ const MerchantProfilePage: React.FC = () => {
     setIsNftTypeModalOpen(true);
   };
 
-  // 检查是否已登录和是否是商家
-  useEffect(() => {
-    if (!connectedWallet) {
-      navigate('/profile');
-    } else {
-      // 检查用户角色是否是商家
-      if (localStorage.getItem('isMerchant') !== 'true') {
-        navigate('/user_profile');
-      }
-    }
-  }, [connectedWallet, navigate]);
-
   // 加载用户和商家数据
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        if (connectedWallet) {
+        const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
+        if (sessionId) {
           // 获取用户信息
           const userInfo = await userService.getUserInfo();
           setUserInfo(userInfo);
-          
-          // 获取NFT数据
-          await fetchNfts(connectedWallet);
-          await fetchCreatedNfts(connectedWallet);
+
+          // // 检查用户角色
+          // if (userInfo?.role !== UserRole.MERCHANT) {
+          //   console.log('用户不是商家，重定向到用户页面');
+          //   navigate('/profile');
+          //   return;
+          // }
           
           // 获取商家信息
-          try {
-            const merchantData = await merchantService.getMerchantInfo();
-            if (merchantData) {
-              setMerchantInfo(merchantData);
-            }
-            
-            // 获取商家铸造的NFT合约
-            const contracts = await merchantService.getMyNFTContracts();
-            console.log('商家NFT合约:', contracts);
-          } catch (merchantErr) {
-            console.error('获取商家信息失败:', merchantErr);
+          const merchantInfo = await merchantService.getMerchantInfo();
+          if (merchantInfo) {
+            setMerchantInfo(merchantInfo);
+          } else {
             setMerchantInfo(null);
             setError('Failed to load merchant information. Please try again later.');
           }
+          
+          // 获取NFT数据
+          await fetchOwnedNfts();
+          await fetchCreatedNfts();
+        } else {
+          navigate('/profile');
         }
-        setIsLoading(false);
       } catch (err) {
         console.error('Error loading user data:', err);
         setError('Failed to load user data. Please try again later.');
+        navigate('/profile');
+      } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [connectedWallet]); // 只依赖connectedWallet
+  }, [sessionId]); 
 
   // 获取用户拥有的NFT
-  const fetchNfts = async (address: string) => {
-    if (!address) return;
-    
-    try {
-      console.log('获取用户拥有的NFT，钱包地址:', address);
-      
+  const fetchOwnedNfts = async () => {
+    try {      
       // 使用nftService获取用户拥有的NFT
-      const ownedNfts = await nftService.getUserOwnedNFTs();
-      console.log('获取到用户拥有的NFT:', ownedNfts);
+      const owned = await nftService.getUserOwnedNFTs();
+      console.log('获取到用户拥有的NFT:', owned);
       // 确保nfts始终是一个数组
-      setNfts(Array.isArray(ownedNfts) ? ownedNfts : []);
+      setOwnedNfts(Array.isArray(owned) ? owned : []);
     } catch (err) {
       console.error('获取NFT失败:', err);
       setError('Failed to load your NFTs. Please try again later.');
       // 发生错误时设置为空数组
-      setNfts([]);
+      setOwnedNfts([]);
     }
   };
 
   // 获取用户创建的NFT
-  const fetchCreatedNfts = async (address: string) => {
-    if (!address) return;
-    
+  const fetchCreatedNfts = async () => {
     try {
-      console.log('获取用户创建的NFT，钱包地址:', address);
-      
       // 使用nftService获取用户创建的NFT
       const created = await merchantService.getMyNFTContracts();
       console.log('获取到用户创建的NFT:', created);
       
+      // 按合约地址过滤，每个合约只保留一个NFT
+      const filteredByContract = created.reduce((acc: any[], nft: any) => {
+        // 检查是否已经有相同合约地址的NFT
+        const existingIndex = acc.findIndex(item => item.contract_address === nft.contract_address);
+        
+        if (existingIndex === -1) {
+          // 如果没有相同合约地址的NFT，则添加当前NFT
+          acc.push(nft);
+        }
+        
+        return acc;
+      }, []);
+      
       // 确保createdNfts始终是一个数组
-      setCreatedNfts(Array.isArray(created) ? created : []);
+      setCreatedNfts(Array.isArray(filteredByContract) ? filteredByContract : []);
     } catch (err) {
       console.error('获取创建的NFT失败:', err);
       setError('Failed to load your created NFTs. Please try again later.');
@@ -153,22 +150,15 @@ const MerchantProfilePage: React.FC = () => {
   };
 
   // 处理NFT详情模态框
-  const handleOpenNftDetail = async (nft: CouponNFT) => {
+  const handleOpenNftDetail = async (nft: NFT) => {
     try {
       // 获取完整的NFT详情
       if (nft.id) {
         const nftDetails = await nftService.getNFTDetails(nft.id);
         if (nftDetails) {
-          // 获取商家信息
-          if (nftDetails.creator_address) {
-            try {
-              const merchantInfo = await merchantService.getMerchantInfo();
-              if (merchantInfo) {
-                nftDetails.merchant_name = merchantInfo.merchant_name;
-              }
-            } catch (merchantErr) {
-              console.error('获取商家信息失败:', merchantErr);
-            }
+          // 使用已有的商家信息
+          if (merchantInfo) {
+            nftDetails.merchant_name = merchantInfo.merchant_name;
           }
           setSelectedNftForDetail(nftDetails);
         } else {
@@ -201,22 +191,27 @@ const MerchantProfilePage: React.FC = () => {
   const handleVerificationSubmit = async (details: { name: string; address: string; file: File }) => {
     try {
       setIsLoading(true);
+      const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
       
       // 假设这里调用API提交商家验证信息
       const response = await merchantService.uploadQualification(details.name, details.address, details.file);
       
+      if (!response) {
+        alert('Failed to submit verification. Please try again.');
+        throw new Error('Failed to submit verification. Please try again.');
+      }
+
       // 关闭模态框
       setIsVerificationModalOpen(false);
       
       // 提示用户
       alert('Verification information submitted successfully. Please wait for review.');
       
-      // 重新加载商家信息
-      if (connectedWallet) {
-        const merchantData = await merchantService.getMerchantInfo();
-        if (merchantData) {
-          // 转换为merchantService.Merchant类型
-          setMerchantInfo(merchantData);
+      // 只更新商家信息，不需要重新获取NFT数据
+      if (sessionId) {
+        const updatedMerchantInfo = await merchantService.getMerchantInfo();
+        if (updatedMerchantInfo) {
+          setMerchantInfo(updatedMerchantInfo);
         }
       }
     } catch (error) {
@@ -253,7 +248,7 @@ const MerchantProfilePage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium text-gray-500">Account Type</p>
-              <p>{userRole === UserRole.ADMIN ? 'Administrator' : 'Merchant'}</p>
+              <p>{userInfo?.role === UserRole.ADMIN ? 'Administrator' : 'Merchant'}</p>
             </div>
             {userInfo && (
               <div>
@@ -292,48 +287,18 @@ const MerchantProfilePage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-gray-50 p-6 rounded-lg text-center">
             <h3 className="text-lg font-medium text-gray-600 mb-2">Owned NFTs</h3>
-            <p className="text-3xl font-bold text-amber-600">{nfts.length || userData?.NFThold?.length || 0}</p>
+            <p className="text-3xl font-bold text-amber-600">{ownedNfts.length}</p>
           </div>
           <div className="bg-gray-50 p-6 rounded-lg text-center">
             <h3 className="text-lg font-medium text-gray-600 mb-2">Created NFTs</h3>
-            <p className="text-3xl font-bold text-amber-600">{createdNfts.length || 0}</p>
+            <p className="text-3xl font-bold text-amber-600">{createdNfts.length}</p>
           </div>
         </div>
       </div>
       
-      {/* 已验证商家的创建NFT按钮 */}
-      {userData?.isMerchant && userData.isverified && (
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-700">Merchant Tools</h2>
-            <button
-              onClick={handleCreateNft}
-              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm flex items-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Create New NFT
-            </button>
-          </div>
-          <div className="bg-gray-50 p-6 rounded-lg">
-            <p className="text-gray-600 mb-4">
-              Use the merchant tools to manage your NFTs and create new ones to promote your brand.
-            </p>
-            <div className="flex space-x-3">
-              <Link
-                to="/my-recipes"
-                className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
-              >
-                View My Creations
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* 商家验证提醒（仅对未验证商家显示） */}
-      {userData?.isMerchant && !userData.isverified && (
+      {merchantInfo && !merchantInfo.is_verified && (
         <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <h3 className="font-semibold text-yellow-800 mb-2">Your merchant account is pending verification</h3>
           <p className="text-yellow-700 mb-3">
@@ -348,9 +313,25 @@ const MerchantProfilePage: React.FC = () => {
       {/* 用户的NFT信息 - 拥有的NFT */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold text-gray-700 mb-4">My Owned NFTs</h2>
-        {nfts.length > 0 ? (
+        {ownedNfts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {nfts.map((nft, index) => (
+            {/* Explore More NFTs Card */}
+            <div 
+              onClick={() => navigate('/swap-market')}
+              className="bg-white rounded-lg shadow-md p-6 border border-dashed border-gray-300 hover:border-amber-500 transition-colors cursor-pointer"
+            >
+              <div className="flex flex-col items-center justify-center h-full">
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Explore More NFTs</h3>
+                <p className="text-gray-600 text-center">Click to explore and discover more NFTs in the market</p>
+              </div>
+            </div>
+
+            {ownedNfts.map((nft, index) => (
               <div key={index} className="relative">
                 <NftCard 
                   nft={adaptNftForCard(nft)} 
@@ -374,23 +355,25 @@ const MerchantProfilePage: React.FC = () => {
       
       {/* 用户的NFT信息 - 创建的NFT */}
       <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-700">My Creations</h2>
-          {/* 添加创建NFT按钮 - 仅对已验证商家显示 */}
-          {merchantInfo?.is_verified && (
-            <button
-              onClick={handleCreateNft}
-              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm flex items-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Create New NFT
-            </button>
-          )}
-        </div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">My Creations</h2>
         {createdNfts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Create New NFT Card */}
+            <div 
+              onClick={handleCreateNft}
+              className="bg-white rounded-lg shadow-md p-6 border border-dashed border-gray-300 hover:border-amber-500 transition-colors cursor-pointer"
+            >
+              <div className="flex flex-col items-center justify-center h-full">
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Create New NFT</h3>
+                <p className="text-gray-600 text-center">Click to create a new NFT for your business</p>
+              </div>
+            </div>
+
             {createdNfts.map((nft, index) => (
               <div key={index} className="relative">
                 <NftCard 
@@ -415,7 +398,7 @@ const MerchantProfilePage: React.FC = () => {
               </div>
             )}
             
-            {userData?.isMerchant && !userData.isverified && (
+            {merchantInfo && !merchantInfo.is_verified && (
               <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-yellow-800 font-medium mb-3">Your merchant account is pending verification</p>
                 <p className="text-yellow-700 mb-4">You will be able to create NFTs once your account is verified.</p>
@@ -502,16 +485,16 @@ const MerchantProfilePage: React.FC = () => {
               </div>
               
               {/* 详细信息区域 */}
-              {selectedNftForDetail.description && (
+              {selectedNftForDetail.details && (
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-2">Details</h3>
                   <div className="bg-gray-50 p-4 rounded-lg">
                     {(() => {
                       try {
-                        console.log('Raw description:', selectedNftForDetail.description);
-                        const details = typeof selectedNftForDetail.description === 'string' 
-                          ? JSON.parse(selectedNftForDetail.description)
-                          : selectedNftForDetail.description;
+                        console.log('Raw description:', selectedNftForDetail.details);
+                        const details = typeof selectedNftForDetail.details === 'string' 
+                          ? JSON.parse(selectedNftForDetail.details)
+                          : selectedNftForDetail.details;
                         console.log('Parsed details:', details);
                         return (
                           <div className="space-y-3">
@@ -531,7 +514,7 @@ const MerchantProfilePage: React.FC = () => {
                         );
                       } catch (e) {
                         console.error('Error parsing description:', e);
-                        return <p className="text-gray-800">{selectedNftForDetail.description}</p>;
+                        return <p className="text-gray-800">{selectedNftForDetail.details?.benefits || 'No benefits available.'}</p>;
                       }
                     })()}
                   </div>
@@ -578,15 +561,9 @@ const MerchantProfilePage: React.FC = () => {
         <div className="flex-grow">
           <p className="text-sm text-gray-600 font-medium">Connected Wallet:</p>
           <p className="text-md text-gray-900 font-mono break-all" title={connectedWallet}>{connectedWallet}</p>
-          {/* 显示商家状态 */}
-          {userData?.isMerchant && (
-            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${userData.isverified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-              {userData.isverified ? 'Verified Merchant' : 'Unverified Merchant'}
-            </span>
-          )}
         </div>
         <button 
-          onClick={() => connectWallet()}
+          onClick={() => disconnectWallet()}
           className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
         >
           Disconnect

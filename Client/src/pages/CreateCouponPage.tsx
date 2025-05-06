@@ -4,6 +4,7 @@ import { useWallet } from '../contexts/WalletContext';
 import nftService from '../services/nftService';
 import contractService from '../services/contractService';
 import merchantService from '../services/merchantService';
+import { CreateCouponNFTData } from '../services/nftService';
 
 
 // Basic validation for wallet IDs
@@ -11,7 +12,7 @@ const WALLET_ID_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 const CreateCouponPage: React.FC = () => {
   const navigate = useNavigate();
-  const { connectedWallet } = useWallet();
+  const { connectedWallet, sessionId } = useWallet();
 
   const [couponName, setCouponName] = useState<string>('');
   const [couponType, setCouponType] = useState<'Cash' | 'Discount' | 'Food'>('Cash');
@@ -103,7 +104,7 @@ const CreateCouponPage: React.FC = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isLoading || !validateForm() || !connectedWallet) {
+    if (isLoading || !validateForm() || !connectedWallet || !sessionId) {
       return;
     }
 
@@ -140,7 +141,7 @@ const CreateCouponPage: React.FC = () => {
       const collectionAddress = receipt.logs[1].args[1];
 
       // 3. Create NFT record in database with new structure
-      const nftData = {
+      const nftData: CreateCouponNFTData = {
         coupon_name: couponName,
         coupon_type: couponType,
         coupon_image: "imageData.url",//TODO:
@@ -148,13 +149,11 @@ const CreateCouponPage: React.FC = () => {
         total_supply: supply,
         creator_address: connectedWallet,
         contract_address: collectionAddress,
-        owner_address: null,
+        owner_address: nftOwners,
         is_used: false,
         details: {
-          coupon_name: couponName,
-          coupon_type: couponType,
           benefits: benefit,
-          other_info: otherInfo || undefined
+          other_info: otherInfo || ""
         }
       };
 
@@ -163,8 +162,12 @@ const CreateCouponPage: React.FC = () => {
       setSuccess('Coupon NFT created successfully!');
       setTimeout(() => navigate('/profile'), 1500);
     } catch (err: any) {
-      console.error('Error creating NFT:', err);
-      setError(err.message || 'Failed to create NFT');
+      if (err.message.includes("user rejected action")) {
+        setError("You have rejected the transaction. Please try again.");
+      } else {
+        console.error('Error creating NFT:', err);
+        setError(err.message || 'Failed to create NFT');
+      }
     } finally {
       setIsLoading(false);
     }

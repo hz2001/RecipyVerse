@@ -3,48 +3,50 @@ import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import MerchantVerificationInputModal from '../components/MerchantVerificationInputModal';
 import merchantService from '../services/merchantService';
-import { UserRole } from '../services/userService';
+import { UserRole, userService } from '@/services';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { connectedWallet, isConnecting, connectWallet } = useWallet();
+  const { connectedWallet, isConnecting, connectWallet, sessionId } = useWallet();
   
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   // 商家验证相关状态
   const [isPreVerifyModalOpen, setIsPreVerifyModalOpen] = useState(false);
-  const [pendingMerchantDetails, setPendingMerchantDetails] = useState<{ name: string; address: string; file: File } | null>(null);
   const [registrationStep, setRegistrationStep] = useState<'initial' | 'submitted' | 'connecting' | 'completed'>('initial');
   const [isUploading, setIsUploading] = useState(false);
 
   // 检查钱包连接状态，如果已连接则重定向到合适的页面
   useEffect(() => {
-    if (connectedWallet) {
-      // 检查用户角色并重定向
-      if (localStorage.getItem('isMerchant') === 'true') {
-        navigate('/merchant_profile');
-      } else {
-        navigate('/user_profile');
+    const checkAndRedirect = async () => {
+      try {
+        if (sessionId) {
+          const user = await userService.getUserInfo();
+          if (user?.role === UserRole.MERCHANT) {
+            navigate('/merchant_profile');
+          } else {
+            navigate('/user_profile');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking user role:', error);
       }
-    }
-  }, [connectedWallet, navigate]);
+    };
+    checkAndRedirect();
+  }, [sessionId]);
   
   // 处理商家验证表单提交
   const handlePreVerificationSubmit = async (details: { name: string; address: string; file: File }) => {
-    try {
-      // 保存商家信息
-      setPendingMerchantDetails(details);
-      
+    try {      
       // 关闭模态框
       setIsPreVerifyModalOpen(false);
       
       // 更新状态为已提交
       setRegistrationStep('submitted');
       setIsUploading(true);
-      
       // 检查是否已连接钱包
-      if (!connectedWallet) {
+      if (!sessionId) {
         // 显示连接钱包提示
         setSuccessMessage("Please connect your wallet to complete your merchant registration.");
         // 下一步将连接钱包
@@ -60,12 +62,11 @@ const ProfilePage: React.FC = () => {
         details.file
       );
       
-      if (!uploadSuccess) {
-        throw new Error('Failed to upload merchant verification information.');
-      }
-      
-      // 设置用户类型为商家
-      localStorage.setItem('isMerchant', 'true');
+      setTimeout(() => {
+        if (!uploadSuccess) {
+          throw new Error('Failed to upload merchant verification information.');
+        }
+      }, 5000);
       
       // 更新状态为已完成
       setRegistrationStep('completed');
@@ -87,8 +88,6 @@ const ProfilePage: React.FC = () => {
 
   // 处理用户注册点击
   const handleCustomerClick = () => {
-    // 确保不是商家
-    localStorage.setItem('isMerchant', 'false');
     // 直接调用钱包连接功能
     connectWallet();
   };

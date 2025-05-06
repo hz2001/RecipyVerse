@@ -3,83 +3,60 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import userService, { UserRole, User } from '../services/userService';
 import NftCard from '../components/NftCard';
-import nftService, { CouponNFT } from '../services/nftService';
+import nftService, { NFT } from '../services/nftService';
 
 // NFT卡片适配器
-const adaptNftForCard = (nft: CouponNFT): any => ({
+const adaptNftForCard = (nft: NFT): any => ({
   ...nft,
   coupon_name: nft.coupon_name || 'Unnamed NFT'
 });
 
 const UserProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { connectedWallet, userRole, connectWallet } = useWallet();
+  const { connectedWallet, connectWallet, disconnectWallet, sessionId } = useWallet();
   
   const [userInfo, setUserInfo] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // NFT数据
-  const [nfts, setNfts] = useState<CouponNFT[]>([]);
+  const [ownedNfts, setOwnedNfts] = useState<NFT[]>([]);
   
   // NFT详情模态框
   const [showNftDetailModal, setShowNftDetailModal] = useState(false);
-  const [selectedNftForDetail, setSelectedNftForDetail] = useState<CouponNFT | null>(null);
-
-  // 检查是否已登录
-  useEffect(() => {
-    if (!connectedWallet) {
-      navigate('/profile');
-    } else {
-      // 检查用户角色是否是商家
-      if (localStorage.getItem('isMerchant') === 'true') {
-        navigate('/merchant_profile');
-      }
-    }
-  }, [connectedWallet, navigate]);
+  const [selectedNftForDetail, setSelectedNftForDetail] = useState<NFT | null>(null);
 
   // 加载用户数据
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        if (connectedWallet) {
-          
-          // 从userService获取用户信息，避免类型不匹配
+        if (sessionId && connectedWallet) {
+          // 获取用户信息
           const user = await userService.getUserInfo();
-          if (user) {
-            setUserInfo(user);
-          }
+          setUserInfo(user);
           
           // 获取NFT数据
-          await fetchNfts();
+          const owned = await nftService.getUserOwnedNFTs();
+          setOwnedNfts(owned);
+        
+        } else {
+          navigate('/profile');
         }
-        setIsLoading(false);
       } catch (err) {
         console.error('Error loading user data:', err);
         setError('Failed to load user data. Please try again later.');
+        navigate('/profile');
+      } finally {
         setIsLoading(false);
-        // 3秒后重定向到首页
-        setTimeout(() => navigate('/'), 3000);
       }
     };
     
     fetchData();
-  }, [connectedWallet, navigate]);
-
-  // 获取用户拥有的NFT
-  const fetchNfts = async () => {
-    try {
-      const ownedNfts = await nftService.getUserOwnedNFTs();
-      setNfts(ownedNfts);
-    } catch (error) {
-      console.error('获取NFT失败:', error);
-      setError('Failed to load NFTs');
-    }
-  };
+  }, [sessionId]);
 
   // 处理NFT详情模态框
-  const handleOpenNftDetail = async (nft: CouponNFT) => {
+  const handleOpenNftDetail = async (nft: NFT) => {
     try {
       // 获取完整的NFT详情
       if (nft.id) {
@@ -87,7 +64,6 @@ const UserProfilePage: React.FC = () => {
         if (nftDetails) {
           setSelectedNftForDetail(nftDetails);
         } else {
-          // 如果无法获取详情，使用当前NFT数据
           setSelectedNftForDetail(nft);
         }
       } else {
@@ -97,7 +73,6 @@ const UserProfilePage: React.FC = () => {
       setShowNftDetailModal(true);
     } catch (err) {
       console.error('获取NFT详情失败:', err);
-      // 即使失败也显示当前信息
       setSelectedNftForDetail(nft);
       setShowNftDetailModal(true);
     }
@@ -134,14 +109,13 @@ const UserProfilePage: React.FC = () => {
         </div>
       )}
       
-      
       {/* 用户基本信息 */}
       <div className="mb-8">
         <div className="bg-gray-50 p-4 rounded-lg">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium text-gray-500">Account Type</p>
-              <p>{userRole === UserRole.ADMIN ? 'Administrator' : 'User'}</p>
+              <p>{userInfo?.role === UserRole.ADMIN ? 'Administrator' : 'User'}</p>
             </div>
             {userInfo && (
               <div>
@@ -158,18 +132,32 @@ const UserProfilePage: React.FC = () => {
         <h2 className="text-xl font-semibold text-gray-700 mb-4">Your NFTs</h2>
         <div className="bg-gray-50 p-6 rounded-lg text-center">
           <h3 className="text-lg font-medium text-gray-600 mb-2">Owned NFTs</h3>
-          <p className="text-3xl font-bold text-amber-600">{nfts.length}</p>
+          <p className="text-3xl font-bold text-amber-600">{ownedNfts.length}</p>
         </div>
       </div>
-      
-      
       
       {/* 用户的NFT信息 - 拥有的NFT */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold text-gray-700 mb-4">My Owned NFTs</h2>
-        {nfts.length > 0 ? (
+        {ownedNfts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {nfts.map((nft, index) => (
+            {/* Explore More NFTs Card */}
+            <div 
+              onClick={() => navigate('/swap-market')}
+              className="bg-white rounded-lg shadow-md p-6 border border-dashed border-gray-300 hover:border-amber-500 transition-colors cursor-pointer"
+            >
+              <div className="flex flex-col items-center justify-center h-full">
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Explore More NFTs</h3>
+                <p className="text-gray-600 text-center">Click to explore and discover more NFTs in the market</p>
+              </div>
+            </div>
+
+            {ownedNfts.map((nft, index) => (
               <div key={index} className="relative">
                 <NftCard 
                   nft={adaptNftForCard(nft)} 
@@ -263,7 +251,7 @@ const UserProfilePage: React.FC = () => {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2">Description</h3>
                 <p className="text-gray-700">
-                  {selectedNftForDetail.description || 
+                  {selectedNftForDetail.details?.benefits || 
                    'No description available.'}
                 </p>
               </div>
@@ -312,14 +300,12 @@ const UserProfilePage: React.FC = () => {
           <p className="text-md text-gray-900 font-mono break-all" title={connectedWallet}>{connectedWallet}</p>
         </div>
         <button 
-          onClick={() => connectWallet()}
+          onClick={() => disconnectWallet()}
           className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
         >
           Disconnect
         </button>
       </div>
-
-
     </div>
   );
 };

@@ -1,10 +1,9 @@
-
 // 钱包服务接口定义
 export interface WalletService {
   connectWallet(): Promise<string | null>;
   verifySignature(address: string): Promise<string | null>;
   disconnectWallet(): void;
-  isConnected(): boolean;
+  isConnected(): Promise<boolean>;
 }
 
 /**
@@ -28,7 +27,11 @@ class WalletServiceImpl implements WalletService {
         const accounts = await window.ethereum.request({
             method: "eth_requestAccounts",
         });
-        return accounts[0];
+        const sessionId = await this.verifySignature(accounts[0]);
+        if (sessionId) {
+            return accounts[0];
+        }
+        return null;
     } catch (error) {
         console.error("Connection ERROR:", error);
         return null;
@@ -63,7 +66,6 @@ class WalletServiceImpl implements WalletService {
         });
         const sessionId = await result.text();
         document.cookie = `sessionId=${sessionId}; path=/; max-age=3600`;
-        localStorage.setItem('walletAddress', address);
         return sessionId;
     }catch (e) {
         console.log(e);
@@ -75,22 +77,31 @@ class WalletServiceImpl implements WalletService {
    * 断开钱包连接
    */
   disconnectWallet(): void {
-    localStorage.removeItem('walletAddress');
-    document.cookie = 'sessionId=; path=/; max-age=0';
+    document.cookie = 'sessionId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   }
   
   /**
    * 检查钱包是否已连接
    */
-  isConnected(): boolean {
-    return !!document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
+  async isConnected(): Promise<boolean> {
+    return this.getConnectedWalletAddress() != null;
   }
   
   /**
    * 获取当前连接的钱包地址
    */
-  getConnectedWalletAddress(): string | null {
-    return localStorage.getItem('walletAddress');
+  async getConnectedWalletAddress(): Promise<string | null> {
+    if (!window.ethereum) return null;
+
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    return accounts.length > 0 ? accounts[0] : null;
+  }
+
+  /**
+   * 获取当前会话ID
+   */
+  async getSessionId(): Promise<string | null> {
+    return document.cookie.split('; ').find(row => row.startsWith('sessionId='))?.split('=')[1] || null;
   }
 }
 

@@ -1,11 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useWallet } from '../contexts/WalletContext';
-import { UserRole } from '../services/userService';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { connectedWallet, isConnecting, connectWallet, disconnectWallet} = useWallet();
+  const { connectedWallet, isConnecting, connectWallet, disconnectWallet, sessionId} = useWallet();
   
   // 格式化显示的钱包地址
   const formatAddress = (address: string) => {
@@ -35,13 +34,15 @@ const Navbar = () => {
           
           {/* 钱包连接按钮 */}
           <div className="hidden md:block">
-            {connectedWallet ? (
+            {sessionId ? (
               <div className="flex items-center space-x-3">
                 <div className="text-white bg-amber-600 rounded-full px-3 py-1 text-sm font-medium">
                   {formatAddress(connectedWallet)}
                 </div>
                 <button 
-                  onClick={disconnectWallet}
+                  onClick={() => {
+                    disconnectWallet();
+                  }}
                   className="bg-white text-amber-600 px-3 py-1 rounded-full text-sm font-medium hover:bg-amber-100 transition-colors"
                 >
                   Disconnect
@@ -104,7 +105,7 @@ const Navbar = () => {
             
             {/* 移动端的钱包连接按钮 */}
             <div className="mt-4 pt-4 border-t border-amber-400">
-              {connectedWallet ? (
+              {sessionId ? (
                 <div className="space-y-2">
                   <div className="text-white text-sm px-3">
                     <span className="font-medium">Connected:</span> {formatAddress(connectedWallet)}

@@ -40,8 +40,6 @@ axiosInstance.interceptors.response.use(
   async (error: AxiosError) => {
     // 处理401错误 - 令牌过期或无效
     if (error.response?.status === 401) {
-      // 清除本地存储的认证信息
-      localStorage.removeItem('sessionId');
       // 重定向到首页或登录页
       window.location.href = '/';
     }

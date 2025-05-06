@@ -1,5 +1,5 @@
 import axiosInstance from './api';
-import { CouponNFT } from './nftService';
+import { NFT } from './nftService';
 
 /**
  * 商家实体接口
@@ -18,7 +18,7 @@ export interface Merchant {
  */
 export interface MerchantService {
   uploadQualification(merchantName: string, merchantAddress: string, file: File): Promise<boolean>;
-  getMyNFTContracts(): Promise<CouponNFT[]>;
+  getMyNFTContracts(): Promise<NFT[]>;
   getMerchantInfo(): Promise<Merchant>;
 }
 
@@ -58,7 +58,7 @@ class MerchantServiceImpl implements MerchantService {
    * 获取我的NFT合约列表
    * @returns NFT合约列表
    */
-  async getMyNFTContracts(): Promise<CouponNFT[]> {
+  async getMyNFTContracts(): Promise<NFT[]> {
     try {
       const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
       if (!sessionId) {
