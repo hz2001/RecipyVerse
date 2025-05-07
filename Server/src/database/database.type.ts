@@ -49,5 +49,6 @@ export interface NFT {
     swapping: string;
     contract_address: string;
     detail_hash: string;
-    token_id: string
+    token_id: string;
+    swapping_id: string;
 }

@@ -81,8 +81,8 @@ RecipeVerse/
 
 ### Prerequisites
 
-- Node.js (v16.x or higher)
-- npm or yarn
+- Node.js (v22.x or The latest LTS version)
+- npm 
 - MetaMask browser extension
 - Git
 
@@ -100,29 +100,29 @@ RecipeVerse/
    npm install
    ```
 
-3. Create a `.env` file in the Server directory with the following variables:
+3. Create a `.env` file in the Server By:
+   ```bash
+   cp ../.env.example .env
    ```
-   PRIVATE_KEY=your_ethereum_private_key
-   ALCHEMY_API_KEY=your_alchemy_api_key
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_KEY=your_supabase_key
+   ```
+   Note:
+   FACTORY_ADDRESS AND SWAP_ADDRESSS should not be modified, it will be automatic generated
+   The PRIVATE_KEY should be input in next step, PORT and RCP_URL could leave it be.
+   ```
+   
+4. Start Local Blockchain Network
+   ```bash
+   npx hardhat node
+   ```
+   ```
+   Copy any one of the private key into the .env PRIVATE_KEY as the owner contracts
    ```
 
-4. Compile smart contracts:
+5. Start the Server
    ```bash
-   npx hardhat compile
+   npm start
    ```
 
-5. Deploy smart contracts to the test network:
-   ```bash
-   npx hardhat run scripts/deploy.ts --network mumbai
-   ```
-
-6. Compile TypeScript files and start the backend server:
-   ```bash
-   npx tsc
-   npx ts-node src/index.ts
-   ```
 
 ### Client Setup
 

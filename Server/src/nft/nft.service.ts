@@ -60,6 +60,7 @@ export async function updateNFT(req: Request, res: Response) {
     const tokenId = body.token_id ?? nft.token_id;
     const details = body.details ?? nft.details;
     const details_hash = body.detail_hash ?? nft.detail_hash
+    const swappingId = body.swapping_id ?? nft.swapping_id
 
     let fileUploaded = {success: true, message: ''};
     if (file) {
@@ -78,7 +79,8 @@ export async function updateNFT(req: Request, res: Response) {
         contractAddress,
         details,
         details_hash,
-        tokenId
+        tokenId,
+        swappingId
     );
 
     if (success && fileUploaded.success) {
@@ -98,11 +100,31 @@ export async function getAllNFTs(req:Request, res:Response){
     const nfts = await nftDatabase.getAllNFTs()
     return res.status(200).send(nfts)
 }
+export async function swapOwner(req:Request, res:Response){
+    const my_nft = req.body.my_nft
+    const target_nft = req.body.target_nft
+    const my_address = my_nft.contract_address
+    const target_address = target_nft.contract_address
+    
+    const my_nft_id = my_nft.token_id
+    const target_nft_id = target_nft.token_id
 
+    const firstUpdate = await nftDatabase.updateOwner(my_nft_id, target_address)
+    if (!firstUpdate.success) {
+        return res.status(400).send(firstUpdate.message)
+    }
+    const secondUpdate = await nftDatabase.updateOwner(target_nft_id, my_address)
+    if (!secondUpdate.success) {
+        return res.status(400).send(secondUpdate.message)
+    }
+    return res.status(200).send("Swap successful")
+    
+}
 
 export default {
     createNFT,
     updateNFT,
     getAllPendingSwapping,
-    getAllNFTs
+    getAllNFTs,
+    swapOwner
 }

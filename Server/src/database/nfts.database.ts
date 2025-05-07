@@ -54,7 +54,7 @@ export async function insertNewNFT(expirationTimeStamp: string, creatorAddress: 
     return {success: true, message: dataNFT};
 }
 
-export async function updateNFT(nftId: string, expirationTimeStamp: string, creatorAddress: string, couponName: string, couponType: string, couponImg: string, totalAmount: number, swapping: string, contractAddress: string, details: string, detailHash: string, tokenId: string) {
+export async function updateNFT(nftId: string, expirationTimeStamp: string, creatorAddress: string, couponName: string, couponType: string, couponImg: string, totalAmount: number, swapping: string, contractAddress: string, details: string, detailHash: string, tokenId: string, swapping_id: string) {
     const {error} = await supabase
         .from('nfts')
         .update({
@@ -68,7 +68,8 @@ export async function updateNFT(nftId: string, expirationTimeStamp: string, crea
             contract_address: contractAddress,
             details: details,
             details_hash: detailHash,
-            token_id: tokenId
+            token_id: tokenId,
+            swapping_id: swapping_id,
         })
         .eq('id', nftId)
         .single()
@@ -96,6 +97,23 @@ export async function getAllNFTs() {
     return data && data.length > 0 ? data as NFT[] : []
 }
 
+export async function updateOwner(nftId: string, ownerAddress: string) {
+    const {error} = await supabase
+        .from('nfts')
+        .update({
+            owner_address: ownerAddress,
+            swapping: null,
+            swapping_id: null
+        })
+        .eq('id', nftId)
+        .single()
+    if (error) {
+        console.error('Error on update NFT:', error);
+        return {success: false, message: error.message};
+    }
+    return {success: true, message: "Success"};
+}
+
 
 export default {
     getNFTsByCreator,
@@ -104,5 +122,6 @@ export default {
     updateNFT,
     insertNewNFT,
     getSwappingNFTs,
-    getAllNFTs
+    getAllNFTs,
+    updateOwner
 }
