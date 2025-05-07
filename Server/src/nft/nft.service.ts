@@ -3,12 +3,12 @@ import nftDatabase from "../database/nfts.database";
 import fileDatabase from "../database/file.databse";
 
 export async function createNFT(req: Request, res: Response) {
-    const body = req.body;
+    const body = JSON.parse(req.body.nft_data);
     const expireDate = `${body.expires_at}T00:00:00.000Z`;
     const creatorAddress = body.creator_address;
     const couponName = body.coupon_name;
     const couponType = body.coupon_type;
-    const couponImg = body.coupon_image;
+    let couponImg = body.coupon_image;
     const totalAmount = body.total_supply;
     const swapping = body.swapping;
     const contractAddress = body.contract_address;
@@ -22,6 +22,8 @@ export async function createNFT(req: Request, res: Response) {
 
     if (file != undefined) {
         fileUploaded = await fileDatabase.uploadFile(contractAddress, file, "nftPhoto");
+        const fileUrl = await fileDatabase.getFileUrl(contractAddress, "nftPhoto");
+        couponImg = fileUrl.data
     }
 
     const {

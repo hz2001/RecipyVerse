@@ -283,9 +283,10 @@ const nftService = {
   /**
    * 创建优惠券NFT
    * @param data 创建优惠券NFT数据
+   * @param img
    * @returns 创建的优惠券NFT
    */
-  async createCouponNFT(data: CreateCouponNFTData) {
+  async createCouponNFT(data: CreateCouponNFTData, img: File): Promise<CouponNFT> {
     try {
       const sessionId = document.cookie.split(';').find(row => row.startsWith('sessionId='))?.split('=')[1];
       if (!sessionId) {
@@ -325,7 +326,15 @@ const nftService = {
             created_at: new Date().toISOString()
           };
 
-          const dbResponse = await axiosInstance.post('/api/nft/create_nft', nftData);
+          const nftFormData = new FormData();
+          nftFormData.append('nft_data', JSON.stringify(nftData));
+          nftFormData.append('file', img);
+
+          const dbResponse = await axiosInstance.post('/api/nft/create_nft', nftFormData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
           if (dbResponse.status !== 200) {
             results.push({ address: ownerAddress, success: false, error: 'Failed to upload NFT data to database' });
             continue;

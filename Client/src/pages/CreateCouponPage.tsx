@@ -114,10 +114,7 @@ const CreateCouponPage: React.FC = () => {
 
     try {
       // 1. Upload image to backend and get image URL
-      // const imageFormData = new FormData();
-      // imageFormData.append('image', image!);
-      // const { data: imageData } = await nftService.uploadImage(imageFormData);
-      
+
       // 2. Create NFT collection using smart contract
       const factoryContract = await contractService.createContract();
       
@@ -157,7 +154,7 @@ const CreateCouponPage: React.FC = () => {
         }
       };
 
-      await nftService.createCouponNFT(nftData);
+      await nftService.createCouponNFT(nftData, image!);
 
       setSuccess('Coupon NFT created successfully!');
       setTimeout(() => navigate('/profile'), 1500);

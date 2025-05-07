@@ -27,14 +27,17 @@ export async function getFile(address: string, fileName: string) {
 }
 
 export async function getFileUrl(address: string, fileName: string) {
-    const {data} = supabase.storage
+    const { data, error } = await supabase
+        .storage
         .from('files')
-        .getPublicUrl(`${address}/${fileName}`);
-    if (data.publicUrl == null || data.publicUrl == "") return {success: false, data: null};
+        .createSignedUrl(`${address}/${fileName}`, 60 * 60);
 
-    return {success: true, data: data.publicUrl};
+    if (error || !data || !data.signedUrl) {
+        return { success: false, data: null };
+    }
+
+    return { success: true, data: data.signedUrl };
 }
-
 export default {
     uploadFile,
     getFile,

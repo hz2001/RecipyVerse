@@ -4,6 +4,7 @@ import Navbar from './components/Navbar'
 import SwapMarket from './pages/SwapMarket'
 import ProfilePage from './pages/ProfilePage'
 import NftDetailPage from './pages/NftDetailPage'
+// import VerificationManagementPage from './pages/VerificationManagementPage'
 import UserProfilePage from './pages/UserProfilePage'
 import MerchantProfilePage from './pages/MerchantProfilePage'
 import AdminPage from './pages/AdminPage'
@@ -27,6 +28,7 @@ function App() {
               <Route path="/merchant_profile" element={<MerchantProfilePage />} />
               <Route path="/nft/:nftId" element={<NftDetailPage />} />
               <Route path="/admin" element={<AdminPage />} />
+              {/*<Route path="/admin/verification" element={<VerificationManagementPage />} />*/}
               <Route path="/create-coupon" element={<CreateCouponPage />} />
               <Route path="*" element={<div className="p-12 text-center">Page Not Found</div>} />
             </Routes>
@@ -34,7 +36,7 @@ function App() {
         </main>
         
         <footer className="bg-gray-100 py-6 text-center text-gray-600">
-          <p>© 2025 RecipeVerse. All rights reserved.</p>
+          <p>© 2023 RecipeVerse. All rights reserved.</p>
         </footer>
       </div>
     </Router>
