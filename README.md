@@ -198,13 +198,12 @@ Our platform supports NFT swapping functionality, allowing users to exchange the
 4. Choose the NFT you want in return
 5. Click "Post" to publish your swap offer
 
-## Implementation Details
-
-[This section will be filled out by you]
 
 ## Future Work
 
-[This section will be filled out by you]
+1. Update the current version
+2. Coupon sales and offline redemption verification 
+3. Implement the mobile version
 
 ## Team Members
 
