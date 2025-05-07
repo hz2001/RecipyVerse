@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom'; // Import hooks
-import { Button, CircularProgress, Modal, TextField, Pagination, FormControlLabel, Checkbox } from '@mui/material';
+import { Button, TextField, Pagination, FormControlLabel, Checkbox } from '@mui/material';
 import NftCard from '../components/NftCard'; 
 import { useWallet } from '../contexts/WalletContext';
 import { Link } from 'react-router-dom';
@@ -223,29 +223,30 @@ function SwapMarket() {
 
         // 2. 调用智能合约将NFT传给合约
         const contract = await contractService.getSwapContract();
-        const nftContract = await contractService.getNFTContract(selectedNFTToPost.contract_address) //TODO: getNFTContract改成 对应的抓nft coupon 的那个
-        
+        const nftContract = await contractService.getContractToBeCalled(selectedNFTToPost.contract_address)
 
         if (!contract) {
           throw new Error('Failed to get swap contract');
         }
 
-        if(!nftContract) {
-          throw new Error("123")
+        if (!nftContract) {
+          throw new Error('Failed to get Approval contract');
         }
+        const contractAddress = await contract.getAddress();
+        const approve = await nftContract.approve(contractAddress, selectedNFTToPost.token_id)
+        const tx = await approve.wait();
+        console.log('Approve transaction:', tx);
 
-        const swapAddress = await contract.getAddress()
-        const approveResponse = await nftContract.approve(swapAddress,selectedNFTToPost.token_id)
-        const responseLog = await approveResponse.wait()
-        console. log(responseLog)
-        
-        const transactionResponse = contract.createSwap(
+        const desiredNFTsIds = desiredNFTs.map(nft => nft.contract_address)
+
+        const transactionResponse = await contract.createSwap(
           selectedNFTToPost.contract_address,
           selectedNFTToPost.token_id,
-          desiredNFTs
+          desiredNFTsIds
         )
-        
-        console.log('Transaction sent:', transactionResponse);
+        const txReceipt = await transactionResponse.wait();
+
+        console.log('Transaction sent:', txReceipt);
         
         
         // 显示成功消息
@@ -573,7 +574,7 @@ function SwapMarket() {
                 <Pagination 
                   count={Math.ceil(getFilteredMarketNFTs().length / itemsPerPage)} 
                   page={page} 
-                  onChange={(e, value) => {
+                  onChange={(_e, value) => {
                     setPage(value);
                     loadAllSwappableNFTs();
                   }}
@@ -807,7 +808,7 @@ function SwapMarket() {
               <Pagination 
                 count={Math.ceil(getFilteredAvailableNFTs().length / 4)} 
                 page={desiredNFTsPage} 
-                onChange={(e, value) => setDesiredNFTsPage(value)}
+                onChange={(_e, value) => setDesiredNFTsPage(value)}
                 color="primary"
               />
             </div>

@@ -17,12 +17,16 @@ export async function deployContract() {
 
     const wallet = new ethers.Wallet(process.env.PRIVATE_KEY || "", provider);
 
-    if (factoryAddress) {
+    if (factoryAddress !== "") {
         const code = await provider.getCode(factoryAddress);
-        if (code && code !== "0x") {
+        if (code && code === "0x") {
+            factoryAddress = "";
+        } else {
             console.log("Found Deployed Factory Contract:", factoryAddress);
         }
-    }else{
+    }
+
+    if (!factoryAddress) {
         const nftFactoryArtifactPath = path.resolve(__dirname, "../../../build/artifacts/contracts/NFTFactory.sol/NFTFactory.json");
         const artifact = JSON.parse(fs.readFileSync(nftFactoryArtifactPath, "utf8"));
         const abi = artifact.abi;
@@ -35,28 +39,33 @@ export async function deployContract() {
         const address = await contract.getAddress();
         updateEnv("FACTORY_ADDRESS", address);
         env.FACTORY_ADDRESS = address;
+        factoryAddress = address;
         console.log("Factory Contract Address:", address);
     }
 
-    if(swapAddress){
+    if (swapAddress !== "") {
         const code = await provider.getCode(swapAddress);
-        if (code && code !== "0x") {
+        if (code && code === "0x") {
+            swapAddress = "";
+        } else {
             console.log("Found Deployed Swap Contract:", swapAddress);
         }
-    }else{
+    }
+
+    if (!swapAddress) {
         const nftSwapArtifactPath = path.resolve(__dirname, "../../../build/artifacts/contracts/NewConditionalSwap.sol/NewConditionalSwap.json");
         const swapArtifact = JSON.parse(fs.readFileSync(nftSwapArtifactPath, "utf8"));
         const swapAbi = swapArtifact.abi;
         const swapBytecode = swapArtifact.bytecode;
 
         const swap = new ethers.ContractFactory(swapAbi, swapBytecode, wallet);
-        const swapContract = await swap.deploy(env.FACTORY_ADDRESS);
+        const swapContract = await swap.deploy(factoryAddress);
         await swapContract.waitForDeployment();
 
-        const swapAddress = await swapContract.getAddress();
-        updateEnv("SWAP_ADDRESS", swapAddress);
-        env.SWAP_ADDRESS = swapAddress;
-        console.log("Swap Contract Address:", swapAddress);
+        const address = await swapContract.getAddress();
+        updateEnv("SWAP_ADDRESS", address);
+        env.SWAP_ADDRESS = address;
+        console.log("Swap Contract Address:", address);
     }
 }
 
