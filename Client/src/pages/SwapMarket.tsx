@@ -49,6 +49,10 @@ function SwapMarket() {
   // 添加状态变量来控制交易处理和成功消息
   const [isProcessingTransaction, setIsProcessingTransaction] = useState(false);
   const [isPostSuccessful, setIsPostSuccessful] = useState(false);
+  const [transactionStatus, setTransactionStatus] = useState<string>('Initializing transaction...');
+
+  // 添加状态变量来控制交易是否被用户取消
+  const [isTransactionCancelled, setIsTransactionCancelled] = useState(false);
 
   // --- UseEffect to handle navigation state from NftDetailPage ---
   useEffect(() => {
@@ -204,72 +208,89 @@ function SwapMarket() {
   
   const handleConfirmDesiredNFTs = async () => {
     if (!selectedNFTToPost || !desiredNFTs.length) return;
-    console.log('selectedNFTToPost', selectedNFTToPost);
-    console.log('desiredNFTs', desiredNFTs);
+    
+    // 重置取消状态
+    setIsTransactionCancelled(false);
 
     try {
       setIsProcessingTransaction(true);
+      setTransactionStatus('Initializing transaction...');
       
       try {
+        // 创建一个循环检查是否取消
+        const checkCancellationInterval = setInterval(() => {
+          if (isTransactionCancelled) {
+            clearInterval(checkCancellationInterval);
+            throw new Error('Transaction cancelled by user');
+          }
+        }, 500);
         
-        console.log('Initiating contract transaction...');
-        // 1. 更新数据库中NFT的swapping字段，使用FormData格式
+        // 1. 更新数据库中NFT的swapping字段
+        setTransactionStatus('Updating NFT swap status in database...');
         const response = await nftService.updateNFTSwap(selectedNFTToPost.id, desiredNFTs.map(nft => nft.id));
-
         if (!response) {
-          alert('Failed to update NFT swap status');
           throw new Error('Failed to update NFT swap status');
         }
-
-        // 2. 调用智能合约将NFT传给合约
-        const contract = await contractService.getSwapContract();
-        const nftContract = await contractService.getNFTContract(selectedNFTToPost.contract_address) //TODO: getNFTContract改成 对应的抓nft coupon 的那个
         
-
-        if (!contract) {
-          throw new Error('Failed to get swap contract');
+        // 2. 获取合约实例
+        setTransactionStatus('Getting contract instances...');
+        const swapContract = await contractService.getSwapContract();
+        const nftContract = await contractService.getContractToBeCalled(selectedNFTToPost.contract_address);
+        if (!swapContract || !nftContract) {
+          throw new Error('Failed to get contracts');
         }
-
-        if(!nftContract) {
-          throw new Error("123")
-        }
-
-        const swapAddress = await contract.getAddress()
-        const approveResponse = await nftContract.approve(swapAddress,selectedNFTToPost.token_id)
-        const responseLog = await approveResponse.wait()
-        console. log(responseLog)
         
-        const transactionResponse = contract.createSwap(
+        // 3. 获取swap contract地址
+        const swapAddress = await swapContract.getAddress();
+        
+        // 4. 请求用户通过MetaMask授权NFT给swap contract
+        setTransactionStatus('Waiting for approval transaction in MetaMask...');
+        // 这里会触发MetaMask弹窗，用户需要确认
+        const approveTransaction = await nftContract.approve(swapAddress, selectedNFTToPost.token_id);
+        
+        // 5. 等待授权交易确认
+        setTransactionStatus('Waiting for approval confirmation...');
+        const approveTxReceipt = await approveTransaction.wait();
+        console.log('Approval transaction confirmed:', approveTxReceipt);
+        
+        // 6. 调用swap contract创建交换
+        setTransactionStatus('Creating swap in contract...');
+        // 这里会再次触发MetaMask弹窗，用户需要确认
+        const swapTransaction = await swapContract.createSwap(
           selectedNFTToPost.contract_address,
           selectedNFTToPost.token_id,
-          desiredNFTs
-        )
+          desiredNFTs.map(nft => nft.id)
+        );
         
-        console.log('Transaction sent:', transactionResponse);
+        // 7. 等待swap交易确认
+        setTransactionStatus('Waiting for swap transaction confirmation...');
+        const swapTxReceipt = await swapTransaction.wait();
+        console.log('Swap transaction confirmed:', swapTxReceipt);
         
+        // 交易完成，清除检查定时器
+        clearInterval(checkCancellationInterval);
         
         // 显示成功消息
+        setTransactionStatus('Transaction completed successfully!');
         setIsPostSuccessful(true);
-      } catch (contractError) {
-        console.error('Transaction failed:', contractError);
-        alert('Failed to post NFT. Please try again.');
-        return;
+        
+        // 关闭模态框并刷新数据
+        setDesiredNFTs([]);
+        setShowDesiredNFTsSelectionModal(false);
+        setSelectedNFTToPost(null);
+        loadAllSwappableNFTs();
+        loadUserNFTs();
+        
+      } catch (error) {
+        console.error('Transaction failed:', error);
+        if (!isTransactionCancelled) {
+          alert(`Failed to post NFT: ${error.message}`);
+        }
       } finally {
         setIsProcessingTransaction(false);
       }
-      
-      // 关闭模态框
-      setDesiredNFTs([]);
-      setShowDesiredNFTsSelectionModal(false);
-      setSelectedNFTToPost(null);
-      
-      // 3. 刷新市场和用户已发布NFT数据
-      loadAllSwappableNFTs();
-      loadUserNFTs();
-      
     } catch (error) {
-      console.error("Error confirming desired NFTs:", error);
-      alert('Failed to update NFT swap preferences. Please try again.');
+      console.error('Error in transaction process:', error);
       setIsProcessingTransaction(false);
     }
   };
@@ -470,6 +491,16 @@ function SwapMarket() {
       
       return !isUserOwned && isSwappable;
     });
+  };
+
+  // 处理用户取消交易
+  const handleCancelTransaction = () => {
+    setIsTransactionCancelled(true);
+    setIsProcessingTransaction(false);
+    // 重置其他相关状态
+    setTimeout(() => {
+      setIsTransactionCancelled(false);
+    }, 1000);
   };
 
   // --- Rendering --- 
@@ -866,6 +897,13 @@ function SwapMarket() {
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-11/12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 mx-auto mb-4"></div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">Processing Transaction</h2>
+            
+            {/* 交易状态显示 */}
+            <div className="mb-4 p-3 bg-gray-100 rounded-lg text-left">
+              <p className="font-medium text-gray-700">Current Status:</p>
+              <p className="text-gray-800">{transactionStatus}</p>
+            </div>
+            
             <p className="text-gray-600 mb-4">
               Please wait while we process your transaction. Do not close this window.
             </p>
@@ -876,6 +914,14 @@ function SwapMarket() {
               <p className="text-gray-700">
                 Your post will be automatically reclaimed after 48 hours if no one swaps.
               </p>
+            </div>
+            <div className="mt-6">
+              <button
+                onClick={handleCancelTransaction}
+                className="px-6 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+              >
+                Cancel Transaction
+              </button>
             </div>
           </div>
         </div>
