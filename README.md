@@ -118,10 +118,21 @@ RecipeVerse/
    Copy any one of the private key into the .env PRIVATE_KEY as the owner contracts
    ```
 
-6. Start the Server
+6. Open a new terminal and go to /Server folder and Start the Server
    ```bash
    npx ts-node src/index.ts
    ```
+
+### MetaMask Extension
+1. Open the MetaMask Extension
+2. Click left up corn Choose Local network
+3. Add Custom Network
+4. Network name change to Local
+5. Set the RPC into `http://localhost:8545`
+6. Set Chian ID into 31337 
+7. Currency Sign Set into GO and save it
+8. Choose the saved local network
+9. Add account by private key generated from the above hardhat node
 
 
 ### Client Setup
