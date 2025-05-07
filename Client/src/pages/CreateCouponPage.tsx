@@ -27,6 +27,7 @@ const CreateCouponPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<string>('');
 
   // Redirect if user is not a verified merchant
   useEffect(() => {
@@ -111,9 +112,11 @@ const CreateCouponPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setSuccess(null);
+    setTransactionStatus('Initializing transaction...');
 
     try {
       // 1. Upload image to backend and get image URL
+      setTransactionStatus('Preparing to create NFT collection...');
 
       // 2. Create NFT collection using smart contract
       const factoryContract = await contractService.createContract();
@@ -125,6 +128,8 @@ const CreateCouponPage: React.FC = () => {
       // Convert expiration date to timestamp
       const expirationTimestamp = Math.floor(new Date(expireDate).getTime() / 1000);
 
+      setTransactionStatus('Please confirm the transaction in your wallet...');
+      
       // Deploy new NFT collection
       const deployTx = await factoryContract.deployCollection(
         couponName,
@@ -134,9 +139,12 @@ const CreateCouponPage: React.FC = () => {
         1, // CouponNFT type
       );
 
+      setTransactionStatus('Transaction submitted. Waiting for confirmation...');
       const receipt = await deployTx.wait();
       const collectionAddress = receipt.logs[1].args[1];
 
+      setTransactionStatus('Creating NFT record in database...');
+      
       // 3. Create NFT record in database with new structure
       const nftData: CreateCouponNFTData = {
         coupon_name: couponName,
@@ -156,6 +164,7 @@ const CreateCouponPage: React.FC = () => {
 
       await nftService.createCouponNFT(nftData, image!);
 
+      setTransactionStatus('NFT created successfully!');
       setSuccess('Coupon NFT created successfully!');
       setTimeout(() => navigate('/profile'), 1500);
     } catch (err: any) {
@@ -178,6 +187,7 @@ const CreateCouponPage: React.FC = () => {
           type="button"
           onClick={() => navigate(-1)}
           className="flex items-center text-gray-600 hover:text-amber-600 transition-colors"
+          disabled={isLoading}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
@@ -200,6 +210,7 @@ const CreateCouponPage: React.FC = () => {
             required
             placeholder="e.g., Summer Coffee Discount"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+            disabled={isLoading}
           />
         </div>
 
@@ -214,6 +225,7 @@ const CreateCouponPage: React.FC = () => {
             onChange={(e) => setCouponType(e.target.value as 'Cash' | 'Discount' | 'Food')}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+            disabled={isLoading}
           >
             <option value="Cash">Cash Voucher</option>
             <option value="Discount">Discount Coupon</option>
@@ -234,6 +246,7 @@ const CreateCouponPage: React.FC = () => {
             rows={3}
             placeholder="e.g., $10 off any purchase"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+            disabled={isLoading}
           />
         </div>
 
@@ -249,6 +262,7 @@ const CreateCouponPage: React.FC = () => {
             onChange={(e) => setExpireDate(e.target.value)}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+            disabled={isLoading}
           />
         </div>
 
@@ -265,6 +279,7 @@ const CreateCouponPage: React.FC = () => {
             required
             min="1"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+            disabled={isLoading}
           />
         </div>
 
@@ -280,6 +295,7 @@ const CreateCouponPage: React.FC = () => {
             onChange={handleImageChange}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+            disabled={isLoading}
           />
           {imagePreview && (
             <div className="mt-4">
@@ -301,6 +317,7 @@ const CreateCouponPage: React.FC = () => {
             rows={3}
             placeholder="Enter wallet IDs separated by commas (e.g., 0x123..., 0xabc...)"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+            disabled={isLoading}
           />
           <p className="mt-1 text-xs text-gray-500">
             Provide a comma-separated list of wallet IDs to directly send the minted NFTs to specific users.
@@ -319,6 +336,7 @@ const CreateCouponPage: React.FC = () => {
             rows={3}
             placeholder="Any additional terms, conditions, or details..."
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+            disabled={isLoading}
           />
         </div>
 
@@ -331,7 +349,8 @@ const CreateCouponPage: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="w-1/3 px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            className="w-1/3 px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
           >
             Cancel
           </button>
@@ -354,6 +373,24 @@ const CreateCouponPage: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* Full-screen Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-11/12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 mx-auto mb-4"></div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Processing Transaction</h2>
+            <div className="mb-4 p-3 bg-gray-100 rounded-lg text-left">
+              <p className="font-medium text-gray-700">Current Status:</p>
+              <p className="text-gray-800">{transactionStatus}</p>
+            </div>
+            <p className="text-gray-600 mb-4">
+              Please confirm the transaction in your wallet and wait for it to be processed.
+              Do not close this window or navigate away from the page.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

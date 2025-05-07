@@ -17,8 +17,8 @@ const HomePage = () => {
                     RecipeVerse connects merchants and customers through blockchain-powered NFT coupons and memberships, enabling secure, transparent swapping without intermediaries.
                   </p>
                   <div className="flex flex-wrap gap-4">
-                    <Link to="/swap-market" className="w-full sm:w-auto text-center bg-white text-amber-600 px-6 py-3 rounded-md font-medium hover:bg-amber-100 transition-colors">
-                      Swap Market
+                    <Link to="/profile" className="w-full sm:w-auto text-center bg-white text-amber-600 px-6 py-3 rounded-md font-medium hover:bg-amber-100 transition-colors">
+                      Start Journey
                     </Link>
                   </div>
                 </div>

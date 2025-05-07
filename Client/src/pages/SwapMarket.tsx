@@ -228,10 +228,7 @@ function SwapMarket() {
         
         // 1. 更新数据库中NFT的swapping字段
         setTransactionStatus('Updating NFT swap status in database...');
-        const response = await nftService.updateNFTSwap(selectedNFTToPost.id, desiredNFTs.map(nft => nft.id));
-        if (!response) {
-          throw new Error('Failed to update NFT swap status');
-        }
+        
 
         // 2. 调用智能合约将NFT传给合约
         setTransactionStatus('Getting smart contract instances...');
@@ -253,15 +250,19 @@ function SwapMarket() {
         console.log('Approve transaction:', tx);
 
         setTransactionStatus('Creating swap transaction...');
-        const desiredNFTsIds = desiredNFTs.map(nft => nft.contract_address)
 
         const transactionResponse = await contract.createSwap(
           selectedNFTToPost.contract_address,
           selectedNFTToPost.token_id,
-          desiredNFTsIds
+          desiredNFTs.map(nft => nft.contract_address)
         )
         const txReceipt = await transactionResponse.wait();
+        const swapping_id = txReceipt.logs[1].args[0];
 
+        const response = await nftService.updateNFTSwap(selectedNFTToPost.id, desiredNFTs.map(nft => nft.id), swapping_id);
+        if (!response) {
+          throw new Error('Failed to update NFT swap status');
+        }
         console.log('Transaction sent:', txReceipt);
         
         // 交易完成，清除检查定时器
@@ -269,12 +270,13 @@ function SwapMarket() {
         
         // 显示成功消息
         setTransactionStatus('Transaction completed successfully!');
-        setIsPostSuccessful(true);
         
-        // 关闭模态框并刷新数据
+        // 关闭所有模态框并刷新数据
         setDesiredNFTs([]);
         setShowDesiredNFTsSelectionModal(false);
         setSelectedNFTToPost(null);
+        setIsPostModalOpen(false); // 关闭选择NFT的模态框
+        setIsPostSuccessful(true); // 显示成功消息
         loadAllSwappableNFTs();
         loadUserNFTs();
         
@@ -356,8 +358,27 @@ function SwapMarket() {
 
   // 过滤用户拥有的NFT，只显示匹配目标NFT的swapping列表中的合约地址的NFT
   const getFilteredUserNFTsForSwap = () => {
-    // 如果没有目标NFT或用户NFT列表为空，直接返回空数组
-    if (!targetNftForSwap || userOwnedNFTs.length === 0) {
+    // 首先过滤出未发布的NFT（swapping为空的NFT）
+    const availableUserNFTs = userOwnedNFTs.filter(nft => {
+      // 检查NFT的swapping字段是否为空
+      let isNotPosted = true;
+      
+      if (nft.swapping) {
+        try {
+          const parsed = JSON.parse(nft.swapping);
+          isNotPosted = !Array.isArray(parsed) || parsed.length === 0;
+        } catch (error) {
+          console.error(`Error parsing swapping field for NFT ${nft.id}:`, error);
+          // 如果解析出错，检查swapping是否为空字符串
+          isNotPosted = nft.swapping.trim() === '';
+        }
+      }
+      
+      return isNotPosted;
+    });
+
+    // 如果没有目标NFT或可用的用户NFT为空，直接返回空数组
+    if (!targetNftForSwap || availableUserNFTs.length === 0) {
       return [];
     }
     
@@ -381,8 +402,8 @@ function SwapMarket() {
       return [];
     }
     
-    // 过滤用户拥有的NFT，只保留合约地址匹配的NFT
-    const filteredNFTs = userOwnedNFTs.filter(nft => {
+    // 过滤可用的用户NFT，只保留合约地址匹配的NFT
+    const filteredNFTs = availableUserNFTs.filter(nft => {
       if (!nft.contract_address) return false;
       return desiredContractAddresses.includes(nft.contract_address.toLowerCase());
     });
@@ -401,52 +422,59 @@ function SwapMarket() {
       setSelectedNftToOffer(nftToOffer);
   };
 
-  // Uses selectedNftToOffer (user's) and targetNftsForSwap (market's)
+  // Uses selectedNftToOffer (user's) and targetNftForSwap (market's)
   const handleConfirmSwap = async () => {
       if (!targetNftForSwap || !selectedNftToOffer || !connectedWallet) return;
       
-      console.log(`确认交换: 用户的NFT ${selectedNftToOffer.coupon_name} (${selectedNftToOffer.id}) 换取 ${targetNftForSwap.coupon_name} (${targetNftForSwap.id})`);
+      console.log(`Confirming swap: ${selectedNftToOffer.coupon_name} (${selectedNftToOffer.id}) for ${targetNftForSwap.coupon_name} (${targetNftForSwap.id})`);
       try {
+        
           // 2. 调用智能合约将NFT传给合约
-          setTransactionStatus('Getting smart contract instances...');
-          const contract = await contractService.getSwapContract();
-          const nftContract = await contractService.getContractToBeCalled(selectedNftToOffer.contract_address)
+        setTransactionStatus('Getting smart contract instances...');
+        const contract = await contractService.getSwapContract();
+        const nftContract = await contractService.getContractToBeCalled(selectedNftToOffer.contract_address)
 
-          if (!contract) {
-            throw new Error('Failed to get swap contract');
-          }
+        if (!contract) {
+          throw new Error('Failed to get swap contract');
+        }
 
-          if (!nftContract) {
-            throw new Error('Failed to get Approval contract');
-          }
+        if (!nftContract) {
+          throw new Error('Failed to get Approval contract');
+        }
 
-          setTransactionStatus('Approving NFT for swap contract...');
-          const contractAddress = await contract.getAddress();
-          const approve = await nftContract.approve(contractAddress, selectedNftToOffer.token_id)
-          const tx = await approve.wait();
-          console.log('Approve transaction:', tx);
+        setTransactionStatus('Approving NFT for swap contract...');
+        const contractAddress = await contract.getAddress();
+        const approve = await nftContract.approve(contractAddress, selectedNftToOffer.token_id)
+        const tx = await approve.wait();
+        console.log('Approve transaction:', tx);
 
-          setTransactionStatus('Creating swap transaction...');
+        setTransactionStatus('Creating swap transaction...');
 
-          const transactionResponse = await contract.acceptSwap(
+        const transactionResponse = await contract.acceptSwap(
+          targetNftForSwap.swapping_id,
+          selectedNftToOffer.contract_address,
+          selectedNftToOffer.token_id
+        )
+        const txReceipt = await transactionResponse.wait();
 
-          )
-          const txReceipt = await transactionResponse.wait();
-          const swapping_id = txReceipt.logs[1].args[0];
-          console.log('Transaction sent:', txReceipt);
-          // 更新用户NFT的swapping状态 - we need to send an array that will be JSON stringified
-          await nftService.updateNFTSwap(selectedNftToOffer.id, [targetNftForSwap.contract_address, swapping_id]);
-          alert('交换申请已成功发起！所有权将在对方接受后更新。');
-          setShowSwapModal(false);
-          setSelectedNftToOffer(null);
-          setTargetNftForSwap(null); 
-          loadAllSwappableNFTs(); 
-          loadUserNFTs(); 
-      } catch (error: any) {
-          console.error("发起交换时发生错误:", error);
-          alert(`交换失败: ${error.message || '未知错误'}`); 
-      }
-  };
+        console.log('Transaction receipt:', txReceipt);
+
+        await nftService.swapOwnership(
+          selectedNftToOffer,
+          targetNftForSwap
+        );
+
+        alert('Swap Completed! You can now see the updated NFTs in your NFTs list.');
+        setShowSwapModal(false);
+        setSelectedNftToOffer(null);
+        setTargetNftForSwap(null); 
+        loadAllSwappableNFTs(); 
+        loadUserNFTs(); 
+    } catch (error: any) {
+        console.error("Error initiating swap:", error);
+        alert(`Swap failed: ${error.message || 'Unknown error'}`); 
+    }
+};
 
   // 转换函数：将NFT转换为NftCard期望的格式
   const adaptToNftCardFormat = (nft: NFT): NFT => nft;
@@ -466,12 +494,13 @@ function SwapMarket() {
   // 添加过滤函数
   const getFilteredMarketNFTs = () => {
     return marketNFTs.filter(nft => {
-      // 过滤掉用户自己的NFT
-      const isUserOwned = typeof nft.owner_address === 'string' 
-        ? nft.owner_address === connectedWallet
-        : typeof nft.owner_address === 'object' && nft.owner_address !== null
-          ? Object.values(nft.owner_address).includes(connectedWallet)
-          : false;
+      // 过滤掉用户自己的NFT - 确保地址比较不区分大小写
+      const userWallet = connectedWallet?.toLowerCase();
+      const ownerAddress = typeof nft.owner_address === 'string' 
+        ? nft.owner_address.toLowerCase()
+        : '';
+      
+      const isUserOwned = userWallet && ownerAddress === userWallet;
       
       // 检查是否可交换 - swapping is a JSON string of contract addresses
       let isSwappable = false;
@@ -481,12 +510,13 @@ function SwapMarket() {
           const swappingArray = JSON.parse(nft.swapping);
           isSwappable = Array.isArray(swappingArray) && swappingArray.length > 0;
         } catch (error) {
-          console.error(`Error parsing swapping for NFT ${nft.id}:`, error);
+          console.error(`Error parsing swapping field for NFT ${nft.id}:`, error);
           // If it can't be parsed, check if it's a non-empty string
           isSwappable = nft.swapping.trim() !== '';
         }
       }
       
+      // 必须同时满足两个条件：1.不是用户自己的NFT 2.可交换
       return !isUserOwned && isSwappable;
     });
   };
@@ -532,6 +562,27 @@ function SwapMarket() {
       coupon_name: 'Unknown NFT',
       contract_address: contractAddress
     };
+  };
+
+  // 获取可发布的用户拥有的NFT（未发布的NFT）
+  const getPostableUserNFTs = () => {
+    return userOwnedNFTs.filter(nft => {
+      // 检查NFT的swapping字段是否为空或null
+      let isNotPosted = true;
+      
+      if (nft.swapping) {
+        try {
+          const parsed = JSON.parse(nft.swapping);
+          isNotPosted = !Array.isArray(parsed) || parsed.length === 0;
+        } catch (error) {
+          console.error(`Error parsing swapping for NFT ${nft.id}:`, error);
+          // 如果解析出错，检查swapping是否为空字符串
+          isNotPosted = nft.swapping.trim() === '';
+        }
+      }
+      
+      return isNotPosted;
+    });
   };
 
   // --- Rendering --- 
@@ -700,9 +751,9 @@ function SwapMarket() {
               <div className="flex justify-center p-5">
                 <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
               </div>
-            ) : userOwnedNFTs.length > 0 ? (
+            ) : getPostableUserNFTs().length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                {userOwnedNFTs.map((nft) => (
+                {getPostableUserNFTs().map((nft) => (
                   <div 
                     key={nft.id}
                     onClick={() => handleSelectNFTToPost(nft)}
@@ -893,15 +944,20 @@ function SwapMarket() {
               </div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">NFT Posted Successfully!</h2>
               <p className="text-gray-600 mb-4">
-                You will be able to claim your NFT any time by clicking on your posted NFT in the "Posted NFTs" section.
+                Your NFT has been posted to the swap market. Other users can now offer to swap their NFTs for yours.
               </p>
               <p className="text-gray-600 mb-6">
-                Your post will be automatically reclaimed after 48 hours if no one swaps.
+                You can view your posted NFT in the "Your Posted NFTs" section below.
               </p>
             </div>
             <div className="text-center">
               <button
-                onClick={() => setIsPostSuccessful(false)}
+                onClick={() => {
+                  setIsPostSuccessful(false);
+                  // 确保所有模态框都被关闭
+                  setIsPostModalOpen(false);
+                  setShowDesiredNFTsSelectionModal(false);
+                }}
                 className="px-6 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
               >
                 OK

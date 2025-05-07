@@ -458,15 +458,17 @@ const nftService = {
    * 更新NFT的交换状态
    * @param nftId NFT ID
    * @param desiredNFTs 期望交换的NFT ID列表
+   * @param swapping_id 交换ID
    */
-  async updateNFTSwap(nftId: string, desiredNFTs: string[]): Promise<boolean> {
+  async updateNFTSwap(nftId: string, desiredNFTs: string[], swapping_id?: string): Promise<boolean> {
     try {
       const formData = new FormData();
       
       // 将desiredNFTs数组转换为JSON字符串并添加到FormData
       // The backend will handle the JSON stringification
       formData.append('desiredNFTs', JSON.stringify(desiredNFTs));
-      
+      formData.append('swapping_id', swapping_id);
+
       console.log('Updating NFT swap with desiredNFTs:', desiredNFTs);
       
       const response = await axiosInstance.put(`/api/nft/update/${nftId}`, formData, {
@@ -482,6 +484,39 @@ const nftService = {
       return true;
     } catch (error) {
       console.error('Error updating NFT swap status:', error);
+      return false;
+    }
+  },
+
+  /**
+   * 交换NFT所有权
+   * @param my_nft 要交换的NFT ID
+   * @param target_nft 目标NFT ID
+   * @returns 交换结果
+   */
+  async swapOwnership(my_nft: NFT, target_nft: NFT): Promise<boolean> {
+    try {
+      if (!my_nft || !target_nft) {
+        throw new Error('Invalid NFTs provided');
+      }
+
+      const formData = new FormData();
+      formData.append('my_nft', JSON.stringify(my_nft));
+      formData.append('target_nft', JSON.stringify(target_nft));
+
+      const response = await axiosInstance.put(`/api/nft/swap_nft`, formData, {  
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }); 
+
+      if (response.status !== 200) {
+        throw new Error('Failed to swap ownership');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error swapping ownership:', error);
       return false;
     }
   }
