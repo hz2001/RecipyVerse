@@ -14,7 +14,6 @@ RecipeVerse is a blockchain-powered platform where users can freely share, disco
   - [Client Setup](#client-setup)
 - [Usage](#usage)
 - [Implementation Details](#implementation-details)
-- [Challenges and Solutions](#challenges-and-solutions)
 - [Future Work](#future-work)
 - [Team Members](#team-members)
 
@@ -91,7 +90,7 @@ RecipeVerse/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/RecipeVerse.git
+   git clone https://github.com/hz2001/RecipeVerse.git
    cd RecipeVerse
    ```
 
@@ -119,9 +118,10 @@ RecipeVerse/
    npx hardhat run scripts/deploy.ts --network mumbai
    ```
 
-6. Start the backend server:
+6. Compile TypeScript files and start the backend server:
    ```bash
-   npm run dev
+   npx tsc
+   npx ts-node src/index.ts
    ```
 
 ### Client Setup
@@ -136,45 +136,64 @@ RecipeVerse/
    npm install
    ```
 
-3. Create a `.env` file in the Client directory with the following variables:
-   ```
-   VITE_CONTRACT_ADDRESS=deployed_contract_address
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_KEY=your_supabase_key
-   ```
-
-4. Start the development server:
+3. Start the development server:
    ```bash
    npm run dev
    ```
 
-5. Open your browser and navigate to `http://localhost:5173`
+4. Open your browser and navigate to `http://localhost:5173`
 
 ## Usage
 
-1. Connect your MetaMask wallet to the application
-2. For recipe creators:
-   - Navigate to "Create Recipe"
-   - Fill in recipe details and upload images
-   - Mint your recipe as an NFT
+Our application demo can be viewed [here](https://drive.google.com/).
 
-3. For recipe explorers:
+The platform provides different functionalities for regular users and business accounts:
+
+### For Regular Users
+1. Navigate to Profile
+2. Click on the user registration box
+3. Connect your MetaMask wallet to complete registration
+4. Once registered, you can:
+   - View your owned NFT recipes
    - Browse recipes on the homepage
    - View recipe details and ownership information
-
-4. For restaurants:
-   - Create utility NFTs (coupons, memberships)
-   - Set parameters like expiration, utility value, and transfer rules
-
-5. For NFT holders:
-   - Participate in governance voting
    - Transfer or trade NFTs with other users
+   - Participate in governance voting
+
+### For Merchants
+1. Navigate to Profile
+2. Click on the Merchant registration box
+3. Upload your Merchant credentials/qualifications
+4. Connect your MetaMask wallet to complete registration
+5. Once verified, you can:
+   - View your owned NFTs
+   - Create and issue NFT coupons, memberships, or other utilities
+   - Set parameters for your NFTs (expiration, utility value, transfer rules)
+
+### Creating NFTs (for verified Merchants)
+1. Navigate to your Profile
+2. Click "Create First NFT"
+3. Fill out the form with your NFT details
+4. Follow the prompts to complete the minting process
+5. Once completed, your Profile will automatically refresh to display your newly issued NFTs
+
+### Swapping NFTs
+Our platform supports NFT swapping functionality, allowing users to exchange their NFTs with others:
+
+#### Accepting a Swap Offer
+1. Navigate to the Swap Market
+2. Browse available NFTs posted for swap
+3. Select an NFT you're interested in
+4. If you own the NFT requested by the poster, click "Confirm Deal" to complete the exchange
+
+#### Posting Your NFT for Swap
+1. Navigate to the Swap Market
+2. Click "Post NFT for Swap"
+3. Select one of your owned NFTs to offer
+4. Choose the NFT you want in return
+5. Click "Post" to publish your swap offer
 
 ## Implementation Details
-
-[This section will be filled out by you]
-
-## Challenges and Solutions
 
 [This section will be filled out by you]
 
