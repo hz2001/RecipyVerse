@@ -18,7 +18,6 @@ export async function getNFTsByAddress(address: string) {
         console.error('Error on get NFTs by address:', error);
         return [];
     }
-    console.log(data);
     return data && data.length > 0 ? data as NFT[] : []
 }
 

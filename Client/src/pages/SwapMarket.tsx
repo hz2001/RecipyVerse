@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom'; // Import hooks
-import { Button, CircularProgress, Modal, TextField, Pagination, FormControlLabel, Checkbox } from '@mui/material';
+import { Button, TextField, Pagination, FormControlLabel, Checkbox } from '@mui/material';
 import NftCard from '../components/NftCard'; 
 import { useWallet } from '../contexts/WalletContext';
 import { Link } from 'react-router-dom';
@@ -231,41 +231,33 @@ function SwapMarket() {
         if (!response) {
           throw new Error('Failed to update NFT swap status');
         }
-        
-        // 2. 获取合约实例
-        setTransactionStatus('Getting contract instances...');
-        const swapContract = await contractService.getSwapContract();
-        const nftContract = await contractService.getContractToBeCalled(selectedNFTToPost.contract_address);
-        if (!swapContract || !nftContract) {
-          throw new Error('Failed to get contracts');
+
+        // 2. 调用智能合约将NFT传给合约
+        const contract = await contractService.getSwapContract();
+        const nftContract = await contractService.getContractToBeCalled(selectedNFTToPost.contract_address)
+
+        if (!contract) {
+          throw new Error('Failed to get swap contract');
         }
-        
-        // 3. 获取swap contract地址
-        const swapAddress = await swapContract.getAddress();
-        
-        // 4. 请求用户通过MetaMask授权NFT给swap contract
-        setTransactionStatus('Waiting for approval transaction in MetaMask...');
-        // 这里会触发MetaMask弹窗，用户需要确认
-        const approveTransaction = await nftContract.approve(swapAddress, selectedNFTToPost.token_id);
-        
-        // 5. 等待授权交易确认
-        setTransactionStatus('Waiting for approval confirmation...');
-        const approveTxReceipt = await approveTransaction.wait();
-        console.log('Approval transaction confirmed:', approveTxReceipt);
-        
-        // 6. 调用swap contract创建交换
-        setTransactionStatus('Creating swap in contract...');
-        // 这里会再次触发MetaMask弹窗，用户需要确认
-        const swapTransaction = await swapContract.createSwap(
+
+        if (!nftContract) {
+          throw new Error('Failed to get Approval contract');
+        }
+        const contractAddress = await contract.getAddress();
+        const approve = await nftContract.approve(contractAddress, selectedNFTToPost.token_id)
+        const tx = await approve.wait();
+        console.log('Approve transaction:', tx);
+
+        const desiredNFTsIds = desiredNFTs.map(nft => nft.contract_address)
+
+        const transactionResponse = await contract.createSwap(
           selectedNFTToPost.contract_address,
           selectedNFTToPost.token_id,
-          desiredNFTs.map(nft => nft.id)
-        );
-        
-        // 7. 等待swap交易确认
-        setTransactionStatus('Waiting for swap transaction confirmation...');
-        const swapTxReceipt = await swapTransaction.wait();
-        console.log('Swap transaction confirmed:', swapTxReceipt);
+          desiredNFTsIds
+        )
+        const txReceipt = await transactionResponse.wait();
+
+        console.log('Transaction sent:', txReceipt);
         
         // 交易完成，清除检查定时器
         clearInterval(checkCancellationInterval);
@@ -604,7 +596,7 @@ function SwapMarket() {
                 <Pagination 
                   count={Math.ceil(getFilteredMarketNFTs().length / itemsPerPage)} 
                   page={page} 
-                  onChange={(e, value) => {
+                  onChange={(_e, value) => {
                     setPage(value);
                     loadAllSwappableNFTs();
                   }}
@@ -838,7 +830,7 @@ function SwapMarket() {
               <Pagination 
                 count={Math.ceil(getFilteredAvailableNFTs().length / 4)} 
                 page={desiredNFTsPage} 
-                onChange={(e, value) => setDesiredNFTsPage(value)}
+                onChange={(_e, value) => setDesiredNFTsPage(value)}
                 color="primary"
               />
             </div>

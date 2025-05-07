@@ -53,7 +53,7 @@ export async function updateNFT(req: Request, res: Response) {
     const couponType = body.coupon_type ?? nft.coupon_type;
     const couponImg = body.coupon_image ?? nft.coupon_image;
     const totalAmount = body.total_supply ?? nft.total_supply;
-    const swapping = body.swapping ?? nft.swapping;
+    const swapping = body.desiredNFTs ?? nft.swapping;
     const contractAddress = body.contract_address ?? nft.contract_address;
     const tokenId = body.token_id ?? nft.token_id;
     const details = body.details ?? nft.details;
