@@ -101,13 +101,13 @@ export async function getAllNFTs(req:Request, res:Response){
     return res.status(200).send(nfts)
 }
 export async function swapOwner(req:Request, res:Response){
-    const my_nft = req.body.my_nft
-    const target_nft = req.body.target_nft
-    const my_address = my_nft.contract_address
-    const target_address = target_nft.contract_address
+    const my_nft = JSON.parse(req.body.my_nft)
+    const target_nft = JSON.parse(req.body.target_nft)
+    const my_address = my_nft.owner_address
+    const target_address = target_nft.owner_address
     
-    const my_nft_id = my_nft.token_id
-    const target_nft_id = target_nft.token_id
+    const my_nft_id = my_nft.id
+    const target_nft_id = target_nft.id
 
     const firstUpdate = await nftDatabase.updateOwner(my_nft_id, target_address)
     if (!firstUpdate.success) {

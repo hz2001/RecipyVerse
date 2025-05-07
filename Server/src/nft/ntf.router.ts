@@ -14,6 +14,6 @@ Router.get("/get_swapping", checkRole(), nftService.getAllPendingSwapping)
 
 Router.get("/get_all", checkRole(), nftService.getAllNFTs)
 
-Router.put('/swap_nft', checkRole(), nftService.swapOwner)
+Router.put('/swap_nft', checkRole(), upload.none(), nftService.swapOwner)
 
 export default Router;

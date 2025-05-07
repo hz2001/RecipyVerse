@@ -110,4 +110,14 @@ contract CouponNFT is ERC721, Ownable {
     function isExpired(uint256 tokenId) public view returns (bool) {
         return block.timestamp > _coupons[tokenId].expiryTimestamp;
     }
+
+    function getAllTokenOwners() public view returns (address[] memory) {
+        address[] memory owners = new address[](_nextTokenId);
+        for (uint256 i = 0; i < _nextTokenId; i++) {
+            owners[i] = _ownerOf(i);
+        }
+        return owners;
+    }
+
+
 }

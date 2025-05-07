@@ -14,3 +14,4 @@ build
 package-lock.json
 /src/.env
 ./env
+.env

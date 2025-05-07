@@ -14,7 +14,6 @@ import {updateSessionIds} from "./utils/utils";
 
 
 
-dotenv.config();
 const app = express();
 
 app.use((req, res, next) => {
