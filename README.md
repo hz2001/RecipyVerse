@@ -93,7 +93,7 @@ RecipeVerse/
    git clone https://github.com/hz2001/RecipeVerse.git
    ```
    ```bash
-   cd RecipeVerse
+   cd RecipyVerse
    ```
 
 2. Install backend dependencies:
@@ -137,10 +137,7 @@ RecipeVerse/
 
 ### Client Setup
 
-1. Open a new terminal window and navigate to the Client directory:
-   ```bash
-   cd ../Client
-   ```
+1. Open a new terminal window and navigate to the Client directory
 
 2. Install frontend dependencies:
    ```bash
@@ -152,7 +149,7 @@ RecipeVerse/
    npm run dev
    ```
 
-4. Open your browser and navigate to `http://localhost:5173`
+4. Open your browser and navigate to `http://localhost:9000`
 
 ## Usage
 
