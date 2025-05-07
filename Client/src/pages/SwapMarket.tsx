@@ -223,12 +223,22 @@ function SwapMarket() {
 
         // 2. 调用智能合约将NFT传给合约
         const contract = await contractService.getSwapContract();
+        const nftContract = await contractService.getNFTContract(selectedNFTToPost.contract_address) //TODO: getNFTContract改成 对应的抓nft coupon 的那个
+        
 
         if (!contract) {
           throw new Error('Failed to get swap contract');
         }
 
+        if(!nftContract) {
+          throw new Error("123")
+        }
 
+        const swapAddress = await contract.getAddress()
+        const approveResponse = await nftContract.approve(swapAddress,selectedNFTToPost.token_id)
+        const responseLog = await approveResponse.wait()
+        console. log(responseLog)
+        
         const transactionResponse = contract.createSwap(
           selectedNFTToPost.contract_address,
           selectedNFTToPost.token_id,
