@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
+import * as path from 'path';
 
-dotenv.config({ path: "../.env"});
+dotenv.config({  path: path.resolve(__dirname, '../../.env') });
 const env = {
     FACTORY_ADDRESS: process.env.FACTORY_ADDRESS || "",
 

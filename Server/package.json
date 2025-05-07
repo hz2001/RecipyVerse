@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "../node_modules/.bin/tsc",
-    "start": "node dist/index.js",
+    "start": "ts-node src/index.ts",
     "dev": "../node_modules/.bin/ts-node backEnd/index.ts"
   },
   "dependencies": {
