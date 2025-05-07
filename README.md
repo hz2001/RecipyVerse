@@ -91,26 +91,26 @@ RecipeVerse/
 1. Clone the repository:
    ```bash
    git clone https://github.com/hz2001/RecipeVerse.git
+   ```
+   ```bash
    cd RecipeVerse
    ```
 
 2. Install backend dependencies:
    ```bash
    cd Server
+   ```
+   ```bash
    npm install
    ```
 
-3. Create a `.env` file in the Server By:
+3. Create a `.env` file in the root folder:
    ```bash
-   cp ../.env.example .env
+   cp ../.env.example ../.env
    ```
-   ```
-   Note:
-   FACTORY_ADDRESS AND SWAP_ADDRESSS should not be modified, it will be automatic generated
-   The PRIVATE_KEY should be input in next step, PORT and RCP_URL could leave it be.
-   ```
+   Then copy the needed criteria to the file. 
    
-4. Start Local Blockchain Network
+5. Start Local Blockchain Network
    ```bash
    npx hardhat node
    ```
@@ -118,9 +118,9 @@ RecipeVerse/
    Copy any one of the private key into the .env PRIVATE_KEY as the owner contracts
    ```
 
-5. Start the Server
+6. Start the Server
    ```bash
-   npm start
+   npx ts-node src/index.ts
    ```
 
 
