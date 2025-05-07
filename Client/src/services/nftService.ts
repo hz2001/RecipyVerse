@@ -1,6 +1,5 @@
 import axiosInstance from './api';
 import contractService from './contractService';
-import { ethers } from 'ethers';
 
 
 export interface NFT{
@@ -20,7 +19,8 @@ export interface NFT{
   coupon_image?: string;
   total_supply?: number; // on contract
 
-  swapping?: string[];
+  swapping?: string; // JSON-encoded string array of contract addresses
+  swapping_id?: string; // JSON-encoded string array of contract addresses
   is_used?: boolean; // on contract
   contract_address?: string;
   merchant_name?: string;
@@ -47,7 +47,8 @@ export interface CouponNFT extends NFT {
   coupon_image?: string;
   total_supply?: number; // on contract
 
-  swapping?: string[];
+  swapping?: string; // JSON-encoded string array of contract addresses
+  swapping_id?: string; // JSON-encoded string array of contract addresses
   is_used?: boolean; // on contract
   contract_address?: string;
   merchant_name?: string;
@@ -78,6 +79,39 @@ export interface CreateCouponNFTData {
  * NFT服务
  */
 const nftService = {
+  // 缓存已获取的商家名称
+  _merchantNameCache: new Map<string, string>(),
+
+  // 缓存已获取的合约NFT信息
+  _contractNFTCache: new Map<string, any>(),
+
+  /**
+   * 获取商家名称
+   * @param creatorAddress 创建者地址
+   * @returns 商家名称
+   */
+  async getMerchantName(creatorAddress: string): Promise<string> {
+    // 检查缓存中是否已有该地址的商家名称
+    if (this._merchantNameCache.has(creatorAddress)) {
+      return this._merchantNameCache.get(creatorAddress) || 'Unknown Merchant';
+    }
+    
+    try {
+      const merchantResponse = await axiosInstance.get(`/api/merchant/get_merchant_info/${creatorAddress}`);
+      const merchantName = merchantResponse.data?.merchant_name || 'Unknown Merchant';
+      
+      // 将结果存入缓存
+      this._merchantNameCache.set(creatorAddress, merchantName);
+      
+      return merchantName;
+    } catch (error) {
+      console.error('Error fetching merchant name:', error);
+      // 错误情况下也缓存默认值，避免重复请求出错的地址
+      this._merchantNameCache.set(creatorAddress, 'Unknown Merchant');
+      return 'Unknown Merchant';
+    }
+  },
+
   /**
    * 获取用户拥有的NFT
    * @returns 拥有的NFT列表
@@ -95,17 +129,9 @@ const nftService = {
       if (response.status === 200 && response.data) {
         console.log("Owned NFTs response.data", response.data);
 
-        // Get merchant names for all NFTs
+        // 获取所有NFT的商家名称
         const merchantNames = await Promise.all(
-          response.data.map(async (nft: any) => {
-            try {
-              const merchantResponse = await axiosInstance.get(`/api/merchant/get_merchant_info/${nft.creator_address}`);
-              return merchantResponse.data?.merchant_name || 'Unknown Merchant';
-            } catch (error) {
-              console.error('Error fetching merchant name:', error);
-              return 'Unknown Merchant';
-            }
-          })
+          response.data.map(async (nft: any) => this.getMerchantName(nft.creator_address))
         );
 
         return response.data.map((nft: any, index: number) => ({
@@ -123,7 +149,8 @@ const nftService = {
           details: nft.details,
           is_used: nft.is_used || false,
           merchant_name: merchantNames[index],
-          swapping: nft.swapping || []
+          swapping: nft.swapping || "",
+          swapping_id: nft.swapping_id || ""
         }));
       }
 
@@ -192,7 +219,7 @@ const nftService = {
   },
 
   /**
-   * 获取所有可交换的NFT
+   * 获取所有可交换的NFT, 可交换NFT是指在数据库中设置了swapping字段的NFT
    * @returns 可交换的NFT列表
    */
   async getAllSwappableNFTs(): Promise<NFT[]> {
@@ -200,7 +227,17 @@ const nftService = {
       const response = await axiosInstance.get('/api/nft/get_swapping');
       if (response.status === 200 && response.data) {
         console.log("getAllSwappableNFTs response.data", response.data);
-        return response.data;
+        
+        // 获取所有NFT的商家名称
+        const merchantNames = await Promise.all(
+          response.data.map(async (nft: any) => this.getMerchantName(nft.creator_address))
+        );
+        
+        // 将商家名称添加到NFT对象中
+        return response.data.map((nft: any, index: number) => ({
+          ...nft,
+          merchant_name: merchantNames[index]
+        }));
       }
       return [];
     } catch (error) {
@@ -217,7 +254,16 @@ const nftService = {
     try {
       const response = await axiosInstance.get('/api/nft/get_all');
       if (response.status === 200 && response.data) {
-        return response.data;
+        // 获取所有NFT的商家名称
+        const merchantNames = await Promise.all(
+          response.data.map(async (nft: any) => this.getMerchantName(nft.creator_address))
+        );
+        
+        // 将商家名称添加到NFT对象中
+        return response.data.map((nft: any, index: number) => ({
+          ...nft,
+          merchant_name: merchantNames[index]
+        }));
       }
       return [];
     } catch (error) {
@@ -418,7 +464,10 @@ const nftService = {
       const formData = new FormData();
       
       // 将desiredNFTs数组转换为JSON字符串并添加到FormData
+      // The backend will handle the JSON stringification
       formData.append('desiredNFTs', JSON.stringify(desiredNFTs));
+      
+      console.log('Updating NFT swap with desiredNFTs:', desiredNFTs);
       
       const response = await axiosInstance.put(`/api/nft/update/${nftId}`, formData, {
         headers: {

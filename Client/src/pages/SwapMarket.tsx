@@ -1,7 +1,7 @@
 import  { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom'; // Import hooks
 import { Button, TextField, Pagination, FormControlLabel, Checkbox } from '@mui/material';
-import NftCard from '../components/NftCard'; 
+import NftCard, { NftCardWithDesiredNfts } from '../components/NftCard'; 
 import { useWallet } from '../contexts/WalletContext';
 import { Link } from 'react-router-dom';
 import nftService, { NFT } from '../services/nftService';
@@ -37,7 +37,7 @@ function SwapMarket() {
   const [showDesiredNFTsSelectionModal, setShowDesiredNFTsSelectionModal] = useState(false);
 
   // Re-introduce state to hold the NFT being targeted for a swap, set from NftDetailPage navigation
-  const [targetNftsForSwap, setTargetNftsForSwap] = useState<NFT[]>([]);
+  const [targetNftForSwap, setTargetNftForSwap] = useState<NFT | null>(null);
 
   // 添加NFT详情模态框的状态
   const [showNftDetailModal, setShowNftDetailModal] = useState(false);
@@ -60,7 +60,7 @@ function SwapMarket() {
       if (locationState?.triggerSwapForNft) {
           console.log("Swap initiated from Detail Page for:", locationState.triggerSwapForNft);
           // Set the target NFT and immediately open the 'Select Your NFT' modal
-          setTargetNftsForSwap([locationState.triggerSwapForNft]);
+          setTargetNftForSwap(locationState.triggerSwapForNft);
           // Clear the state from location history to prevent re-triggering on refresh/back
           navigate(location.pathname, { replace: true, state: {} }); 
           // 打开swap模态框
@@ -89,6 +89,7 @@ function SwapMarket() {
         setTotalPages(1);
         return;
       }
+      
       
       setMarketNFTs(response);
       setTotalPages(Math.ceil(response.length / itemsPerPage));
@@ -233,6 +234,7 @@ function SwapMarket() {
         }
 
         // 2. 调用智能合约将NFT传给合约
+        setTransactionStatus('Getting smart contract instances...');
         const contract = await contractService.getSwapContract();
         const nftContract = await contractService.getContractToBeCalled(selectedNFTToPost.contract_address)
 
@@ -243,11 +245,14 @@ function SwapMarket() {
         if (!nftContract) {
           throw new Error('Failed to get Approval contract');
         }
+
+        setTransactionStatus('Approving NFT for swap contract...');
         const contractAddress = await contract.getAddress();
         const approve = await nftContract.approve(contractAddress, selectedNFTToPost.token_id)
         const tx = await approve.wait();
         console.log('Approve transaction:', tx);
 
+        setTransactionStatus('Creating swap transaction...');
         const desiredNFTsIds = desiredNFTs.map(nft => nft.contract_address)
 
         const transactionResponse = await contract.createSwap(
@@ -328,6 +333,9 @@ function SwapMarket() {
 
   // Updated: 显示NFT详情模态框，而不是导航到NftDetailPage
   const handleMarketNFTClick = (nft: NFT) => {
+    // Log the NFT data to debug merchant name
+    console.log("Displaying SelectedNFT details:", nft);
+    
     setSelectedNftForDetail({
       ...nft,
       details: {
@@ -342,15 +350,52 @@ function SwapMarket() {
   const handleInitiateSwap = (targetNft: NFT) => {
       setSelectedNftToOffer(null); 
       loadUserNFTs(); // Load user's NFTs to select from
-      setTargetNftsForSwap([targetNft]); // Set single target NFT
+      setTargetNftForSwap(targetNft); // Set target NFT as single object
       setShowSwapModal(true); // Open the modal to select user's NFT
   };
 
-   const handleCloseSwapModal = () => {
-        setShowSwapModal(false);
-        setSelectedNftToOffer(null);
-        setTargetNftsForSwap([]); // Clear the targets when closing modal
-   }
+  // 过滤用户拥有的NFT，只显示匹配目标NFT的swapping列表中的合约地址的NFT
+  const getFilteredUserNFTsForSwap = () => {
+    // 如果没有目标NFT或用户NFT列表为空，直接返回空数组
+    if (!targetNftForSwap || userOwnedNFTs.length === 0) {
+      return [];
+    }
+    
+    // 获取目标NFT的swapping列表（合约地址数组）
+    let desiredContractAddresses: string[] = [];
+    
+    if (targetNftForSwap.swapping) {
+      try {
+        const parsed = JSON.parse(targetNftForSwap.swapping);
+        if (Array.isArray(parsed)) {
+          desiredContractAddresses = parsed.map(address => address.toLowerCase());
+        }
+      } catch (error) {
+        console.error(`Error parsing swapping field for NFT ${targetNftForSwap.id}:`, error);
+      }
+    }
+    
+    // 如果swapping列表为空，表示该NFT不可交换，返回空数组
+    if (desiredContractAddresses.length === 0) {
+      console.log("目标NFT不可交换或未指定期望NFT");
+      return [];
+    }
+    
+    // 过滤用户拥有的NFT，只保留合约地址匹配的NFT
+    const filteredNFTs = userOwnedNFTs.filter(nft => {
+      if (!nft.contract_address) return false;
+      return desiredContractAddresses.includes(nft.contract_address.toLowerCase());
+    });
+    
+    console.log(`匹配的NFT数量: ${filteredNFTs.length}, 期望的合约地址: ${desiredContractAddresses.join(', ')}`);
+    return filteredNFTs;
+  };
+
+  const handleCloseSwapModal = () => {
+    setShowSwapModal(false);
+    setSelectedNftToOffer(null);
+    setTargetNftForSwap(null); // Clear the target NFT
+  }
 
   const handleSelectNFTForSwap = (nftToOffer: NFT) => {
       setSelectedNftToOffer(nftToOffer);
@@ -358,90 +403,43 @@ function SwapMarket() {
 
   // Uses selectedNftToOffer (user's) and targetNftsForSwap (market's)
   const handleConfirmSwap = async () => {
-      if (targetNftsForSwap.length === 0 || !selectedNftToOffer || !connectedWallet) return;
-      const targetNft = targetNftsForSwap[0]; // Get the first target NFT
-      console.log(`确认交换: 用户的NFT ${selectedNftToOffer.coupon_name} (${selectedNftToOffer.id}) 换取 ${targetNft.coupon_name} (${targetNft.id})`);
+      if (!targetNftForSwap || !selectedNftToOffer || !connectedWallet) return;
+      
+      console.log(`确认交换: 用户的NFT ${selectedNftToOffer.coupon_name} (${selectedNftToOffer.id}) 换取 ${targetNftForSwap.coupon_name} (${targetNftForSwap.id})`);
       try {
-          // 验证用户对选择的NFT的所有权
-          const userNftData = await nftService.getNFTDetails(selectedNftToOffer.id);
-          if (!userNftData) {
-            throw new Error('无法获取NFT详情');
+          // 2. 调用智能合约将NFT传给合约
+          setTransactionStatus('Getting smart contract instances...');
+          const contract = await contractService.getSwapContract();
+          const nftContract = await contractService.getContractToBeCalled(selectedNftToOffer.contract_address)
+
+          if (!contract) {
+            throw new Error('Failed to get swap contract');
           }
-          
-          // 检查所有权
-          let isOwner = false;
-          
-          // 检查字符串类型的owner_address
-          if (typeof userNftData.owner_address === 'string') {
-            isOwner = userNftData.owner_address === connectedWallet;
+
+          if (!nftContract) {
+            throw new Error('Failed to get Approval contract');
           }
-          // 检查JSON对象类型的owner_address
-          else if (typeof userNftData.owner_address === 'object' && userNftData.owner_address !== null) {
-            isOwner = Object.values(userNftData.owner_address).includes(connectedWallet);
-          }
-          
-          if (!isOwner) {
-            throw new Error(`您不是此NFT的所有者，无法用于交换`);
-          }
-          
-          // 验证目标NFT是否接受用户的NFT
-          const targetNftData = await nftService.getNFTDetails(targetNft.id);
-          if (!targetNftData) {
-            throw new Error('无法获取目标NFT详情');
-          }
-          
-          // 检查目标NFT是否可交换
-          if (!targetNftData.swapping || 
-              (typeof targetNftData.swapping === 'object' && 
-               Object.values(targetNftData.swapping).every(arr => 
-                 !Array.isArray(arr) || arr.length === 0))) {
-            throw new Error('此NFT当前不可用于交换');
-          }
-          
-          // 检查目标NFT是否接受用户的NFT（如果有特定需求）
-          let isAccepted = false;
-          
-          // 新格式：检查是否在任意一个所需NFT数组中
-          if (typeof targetNftData.swapping === 'object' && targetNftData.swapping !== null) {
-            const arrays = Object.values(targetNftData.swapping);
-            // 如果任意一个数组为空，表示接受任何NFT
-            const hasEmptyArray = arrays.some(arr => Array.isArray(arr) && arr.length === 0);
-            
-            if (hasEmptyArray) {
-              isAccepted = true;
-            } else {
-              // 检查是否包含用户的NFT ID
-              isAccepted = arrays.some(arr => 
-                Array.isArray(arr) && arr.includes(selectedNftToOffer.id));
-            }
-          }
-          // 向后兼容：旧格式默认接受任何NFT
-          else if (Array.isArray(targetNftData.swapping) && targetNftData.swapping.length > 0) {
-            isAccepted = true;
-          }
-          
-          if (!isAccepted) {
-            throw new Error('此NFT不接受您提供的NFT作为交换');
-          }
-          
-          // 为用户的NFT创建swapping对象，表明它在交换中
-          let userNftSwapping: any = {};
-          
-          if (typeof userNftData.owner_address === 'object' && userNftData.owner_address !== null) {
-            Object.keys(userNftData.owner_address).forEach(key => {
-              userNftSwapping[key] = [targetNft.id];
-            });
-          } else {
-            userNftSwapping["pending_1"] = [targetNft.id];
-          }
-          
-          // 更新用户NFT的swapping状态
-          await nftService.updateNFTSwap(selectedNftToOffer.id, [targetNft.id]);
-            
+
+          setTransactionStatus('Approving NFT for swap contract...');
+          const contractAddress = await contract.getAddress();
+          const approve = await nftContract.approve(contractAddress, selectedNftToOffer.token_id)
+          const tx = await approve.wait();
+          console.log('Approve transaction:', tx);
+
+          setTransactionStatus('Creating swap transaction...');
+
+          const transactionResponse = await contract.acceptSwap(
+
+          )
+          const txReceipt = await transactionResponse.wait();
+          const swapping_id = txReceipt.logs[1].args[0];
+          console.log('Transaction sent:', txReceipt);
+          // 更新用户NFT的swapping状态 - we need to send an array that will be JSON stringified
+          await nftService.updateNFTSwap(selectedNftToOffer.id, [targetNftForSwap.contract_address, swapping_id]);
           alert('交换申请已成功发起！所有权将在对方接受后更新。');
           setShowSwapModal(false);
           setSelectedNftToOffer(null);
-          setTargetNftsForSwap([]); // 清除目标NFT状态
+          setTargetNftForSwap(null); 
           loadAllSwappableNFTs(); 
           loadUserNFTs(); 
       } catch (error: any) {
@@ -475,11 +473,19 @@ function SwapMarket() {
           ? Object.values(nft.owner_address).includes(connectedWallet)
           : false;
       
-      // 检查是否可交换
-      const isSwappable = nft.swapping !== null && 
-        (Array.isArray(nft.swapping) ? nft.swapping.length > 0 : 
-         typeof nft.swapping === 'object' ? Object.values(nft.swapping).some(arr => Array.isArray(arr) && arr.length > 0) : 
-         false);
+      // 检查是否可交换 - swapping is a JSON string of contract addresses
+      let isSwappable = false;
+      
+      if (nft.swapping) {
+        try {
+          const swappingArray = JSON.parse(nft.swapping);
+          isSwappable = Array.isArray(swappingArray) && swappingArray.length > 0;
+        } catch (error) {
+          console.error(`Error parsing swapping for NFT ${nft.id}:`, error);
+          // If it can't be parsed, check if it's a non-empty string
+          isSwappable = nft.swapping.trim() !== '';
+        }
+      }
       
       return !isUserOwned && isSwappable;
     });
@@ -493,6 +499,39 @@ function SwapMarket() {
     setTimeout(() => {
       setIsTransactionCancelled(false);
     }, 1000);
+  };
+
+  // Utility function to get NFT info by contract address
+  const getNftInfoByContractAddress = (contractAddress: string) => {
+    // Try to find the NFT in available NFTs for selection
+    // console.log("availableNFTsForSelection in getNftInfoByContractAddress", availableNFTsForSelection);
+    if (availableNFTsForSelection.length > 0) {
+      const nft = availableNFTsForSelection.find(nft => nft.contract_address === contractAddress);
+      if (nft) {
+        return {
+          coupon_name: nft.coupon_name || 'Unknown',
+          contract_address: contractAddress
+        };
+      }
+    }
+    // console.log("marketNFTs in getNftInfoByContractAddress", marketNFTs);
+    // Try to find the NFT in market NFTs
+    if (marketNFTs.length > 0) {
+      const nft = marketNFTs.find(nft => nft.contract_address === contractAddress);
+      if (nft) {
+        return {
+          coupon_name: nft.coupon_name || 'Unknown',
+          contract_address: contractAddress
+        };
+      }
+
+    }
+    
+    // If not found, return a default object
+    return {
+      coupon_name: 'Unknown NFT',
+      contract_address: contractAddress
+    };
   };
 
   // --- Rendering --- 
@@ -583,16 +622,18 @@ function SwapMarket() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {getFilteredMarketNFTs().map((nft) => (
-                  <NftCard 
-                    key={nft.id}
-                    nft={adaptToNftCardFormat(nft)} 
-                    onClick={() => handleMarketNFTClick(nft)}
-                  />
+                  <div key={nft.id} className="relative mb-12">
+                    <NftCardWithDesiredNfts 
+                      nft={adaptToNftCardFormat(nft)} 
+                      onClick={() => handleMarketNFTClick(nft)}
+                      getNftInfoByContractAddress={getNftInfoByContractAddress}
+                    />
+                  </div>
                 ))} 
               </div>
               
               {/* Pagination */}
-              <div className="flex justify-center mt-8">
+              <div className="flex justify-center mt-1">
                 <Pagination 
                   count={Math.ceil(getFilteredMarketNFTs().length / itemsPerPage)} 
                   page={page} 
@@ -743,13 +784,13 @@ function SwapMarket() {
                     <div key={nft.id} className="flex items-center bg-white p-2 rounded-md shadow-sm">
                       <div className="w-8 h-8 rounded-md overflow-hidden mr-2">
                         <img 
-                          src={nft.coupon_image || nft.coupon_image || '/placeholder-images/nft-default.jpg'} 
+                          src={nft.coupon_image || 'No image'} 
                           alt={nft.coupon_name || 'NFT'} 
                           className="w-full h-full object-cover"
                         />
                       </div>
                       <div className="flex-1 truncate">
-                        <p className="text-xs font-medium truncate">{nft.coupon_name || nft.coupon_name}</p>
+                        <p className="text-xs font-medium truncate">{nft.coupon_name}</p>
                       </div>
                       <button 
                         onClick={(e) => {
@@ -792,25 +833,12 @@ function SwapMarket() {
                             onClick={() => handleToggleDesiredNFT(nft)}
                             className="rounded-lg overflow-hidden cursor-pointer transition-all p-4"
                           >
-                            <NftCard 
+                            <NftCardWithDesiredNfts 
                               nft={adaptToNftCardFormat(nft)} 
                               onClick={() => {}} // 防止NftCard内部onClick与外层容器onClick冲突
                               isSelected={isSelected}
+                              getNftInfoByContractAddress={getNftInfoByContractAddress}
                             />
-                            {/* 添加合约地址显示 */}
-                            <div className="p-1 bg-gray-50 border-t mt-0"> 
-                              {/* TODO: 合约地址显示 看不全*/}
-                              <p className="text-[10px] text-gray-500 truncate">
-                                Contract: {nft.contract_address}
-                              </p>
-                            </div>
-                            {isSelected && (
-                              <div className="absolute top-2 right-2 bg-amber-500 text-white rounded-full w-6 h-6 flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -927,15 +955,15 @@ function SwapMarket() {
               Select Your NFT to Offer
             </h2>
             <p className="text-gray-600 mb-6">
-              You are offering to swap for: <span className="font-semibold">{targetNftsForSwap[0]?.coupon_name}</span>
+              You are offering to swap for: <span className="font-semibold">{targetNftForSwap?.coupon_name}</span>
             </p>
             {isLoadingUserNFTs ? (
               <div className="flex justify-center p-5">
                 <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
               </div>
-            ) : userOwnedNFTs.length > 0 ? (
+            ) : getFilteredUserNFTsForSwap().length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                {userOwnedNFTs.map((nft) => (
+                {getFilteredUserNFTsForSwap().map((nft) => (
                   <div 
                     key={nft.id}
                     onClick={() => handleSelectNFTForSwap(nft)}
@@ -945,16 +973,17 @@ function SwapMarket() {
                         : 'hover:ring-1 hover:ring-amber-300'
                     }`}
                   >
-                    <NftCard 
+                    <NftCardWithDesiredNfts 
                       nft={adaptToNftCardFormat(nft)} 
                       onClick={handleSelectNFTForSwap}
                       isSelected={selectedNftToOffer?.id === nft.id}
+                      getNftInfoByContractAddress={getNftInfoByContractAddress}
                     />
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-600 mb-6">You don't have any eligible NFTs to offer.</p>
+              <p className="text-gray-600 mb-6">You don't have any eligible NFTs to offer for this swap.</p>
             )}
             <div className="flex justify-end gap-4">
               <button 
@@ -986,8 +1015,8 @@ function SwapMarket() {
             {/* 上方图片区域 */}
             <div className="w-full h-64 bg-gray-200 relative">
               <img
-                src={selectedNftForDetail.coupon_image || selectedNftForDetail.coupon_image || '/placeholder-images/nft-default.jpg'}
-                alt={selectedNftForDetail.coupon_name || selectedNftForDetail.coupon_name || 'NFT'}
+                src={selectedNftForDetail.coupon_image || 'No image'}
+                alt={selectedNftForDetail.coupon_name || 'NFT'}
                 className="w-full h-full object-cover"
               />
               <button 
@@ -1032,6 +1061,56 @@ function SwapMarket() {
                     {selectedNftForDetail.details?.others || 'No additional details available.'}
                   </p>
                 </div>
+                
+                {/* Desired NFTs section */}
+                {selectedNftForDetail.swapping && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 mb-1">Desired NFTs</h3>
+                    {(() => {
+                      let desiredNfts: string[] = [];
+                      try {
+                        const parsed = JSON.parse(selectedNftForDetail.swapping);
+                        if (Array.isArray(parsed)) {
+                          desiredNfts = parsed;
+                        }
+                      } catch (error) {
+                        console.error(`Error parsing swapping field for NFT ${selectedNftForDetail.id}:`, error);
+                      }
+                      
+                      if (desiredNfts.length === 0) {
+                        return <p className="text-gray-800">This NFT is open to any swap offers.</p>;
+                      }
+                      
+                      return (
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {desiredNfts.map((contractAddress, index) => {
+                            const nftInfo = getNftInfoByContractAddress(contractAddress);
+                            return (
+                              <div 
+                                key={index} 
+                                className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm flex items-center"
+                                title={contractAddress}
+                              >
+                                <span className="mr-2">{nftInfo.coupon_name}</span>
+                                <button
+                                  className="text-xs text-amber-800 hover:text-amber-900"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(contractAddress);
+                                    alert(`Copied address: ${contractAddress}`);
+                                  }}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                  </svg>
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
               
               {/* 按钮区域 */}
@@ -1068,43 +1147,51 @@ function SwapMarket() {
     const getDesiredNftIds = (nft: NFT) => {
       if (!nft.swapping) return [];
       
-      // Handle new format
-      if (typeof nft.swapping === 'object' && nft.swapping !== null) {
-        const allDesiredIds: string[] = [];
-        
-        Object.values(nft.swapping).forEach(value => {
-          if (Array.isArray(value)) {
-            value.forEach(id => {
-              if (!allDesiredIds.includes(id)) {
-                allDesiredIds.push(id);
-              }
-            });
-          }
-        });
-        
-        return allDesiredIds;
+      // Now swapping is a JSON string of contract addresses
+      try {
+        const parsed = JSON.parse(nft.swapping);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch (error) {
+        console.error(`Error parsing swapping field for NFT ${nft.id}:`, error);
       }
       
-      return []; // Return empty array for old format or if no desired NFTs
+      return []; // Return empty array for any other format or parsing error
     };
     
     useEffect(() => {
       async function fetchUserPostedNFTs() {
         setIsLoading(true);
         try {
-          // 如果已经有marketNFTs数据，从中过滤出用户发布的NFT
-          if (marketNFTs.length > 0 && connectedWallet) {
-            const userPostedNFTs = marketNFTs.filter(nft => 
-              typeof nft.owner_address === 'string' 
-                ? nft.owner_address === connectedWallet
-                : typeof nft.owner_address === 'object' && nft.owner_address !== null
-                  ? Object.values(nft.owner_address).includes(connectedWallet)
-                  : false
-            );
-            setPostedNFTs(userPostedNFTs);
+          // 如果没有钱包连接或marketNFTs未加载，则不显示任何内容
+          if (!connectedWallet || marketNFTs.length === 0) {
+            setPostedNFTs([]);
             return;
-          } 
-          setPostedNFTs([]);
+          }
+                    
+          // 从已加载的marketNFTs中过滤出用户发布的NFT
+          const userPostedNFTs = marketNFTs.filter(nft => {
+            // 检查NFT是否属于当前用户
+            const isUserOwned = nft.owner_address?.toLowerCase() === connectedWallet?.toLowerCase();
+            
+            // 检查是否设置了交换条件 - swapping是一个JSON字符串的合约地址数组
+            let hasSwappingConditions = false;
+            if (nft.swapping) {
+              try {
+                const swappingArray = JSON.parse(nft.swapping);
+                hasSwappingConditions = Array.isArray(swappingArray) && swappingArray.length > 0;
+              } catch (error) {
+                console.error(`Error parsing swapping field for NFT ${nft.id}:`, error);
+                hasSwappingConditions = false;
+              }
+            }
+            
+            // 返回同时满足两个条件的NFT
+            return isUserOwned && hasSwappingConditions;
+          });
+          
+          setPostedNFTs(userPostedNFTs);
         } catch (error) {
           console.error("Error loading posted NFTs:", error);
           setPostedNFTs([]);
@@ -1138,22 +1225,12 @@ function SwapMarket() {
           const desiredNftIds = getDesiredNftIds(nft);
           
           return (
-            <div key={nft.id} className="relative">
-              <NftCard 
+            <div key={nft.id} className="relative mb-12">
+              <NftCardWithDesiredNfts 
                 nft={adaptToNftCardFormat(nft)}
                 onClick={() => handleOpenNftDetail(nft)}
+                getNftInfoByContractAddress={getNftInfoByContractAddress}
               />
-              
-              {/* Desired NFTs indicator */}
-              {desiredNftIds.length > 0 ? (
-                <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full">
-                  Looking for {desiredNftIds.length} specific NFT{desiredNftIds.length > 1 ? 's' : ''}
-                </div>
-              ) : (
-                <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                  Open to any offers
-                </div>
-              )}
             </div>
           );
         })}

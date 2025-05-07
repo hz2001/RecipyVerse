@@ -157,7 +157,7 @@ function NftDetailPage() {
                 <span className="bg-amber-100 text-amber-600 h-5 w-5 rounded-full flex items-center justify-center text-xs mr-3 mt-1">
                   •
                 </span>
-                <span className="text-gray-700">{nftDetails.details}</span>
+                <span className="text-gray-700">{nftDetails.details.benefits}</span>
               </div>
             ) : (
               <p className="text-gray-600">No specific benefits listed for this NFT.</p>
@@ -172,7 +172,7 @@ function NftDetailPage() {
           {/* Right Column - Description and Actions */}
           <div className="md:col-span-2 bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Description</h2>
-            <p className="text-gray-700 mb-8">{nftDetails.details || 'No description available.'}</p>
+            <p className="text-gray-700 mb-8">{nftDetails.details.benefits || 'No description available.'}</p>
             
             <h2 className="text-xl font-bold text-gray-800 mb-4">Blockchain Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
