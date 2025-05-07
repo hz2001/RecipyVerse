@@ -145,7 +145,12 @@ RecipeVerse/
 
 ## Usage
 
-Our application demo can be viewed [here](https://drive.google.com/).
+Our application demo can be viewed here:
+
+[Register as a merchant](https://drive.google.com/file/d/18zW2JZnpxbIP91wubJzkXi9_GLfZJLNU/view?usp=sharing)
+[Create NFT as a merchant A](https://drive.google.com/file/d/1GgBcN7x8-qmu0IWZnKzf8bAJKhl0nEVv/view?usp=sharing).
+[Search and Swap as A User B](https://drive.google.com/file/d/1SxdeWpIApqDwsw1o4gEhZHXSx8OWRe_6/view?usp=sharing).
+
 
 The platform provides different functionalities for regular users and business accounts:
 
